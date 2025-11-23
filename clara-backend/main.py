@@ -1,0 +1,285 @@
+"""
+Clara Multi-Agent Backend - Main Application
+"""
+
+import asyncio
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+from typing import Optional, Dict, Any
+import uvicorn
+
+from orchestrator.core import get_orchestrator
+from agents.sales_agent.agent import SalesAgent
+from input_streams.voice_stream import VoiceStream
+from utils.logger import get_logger
+from config import settings
+
+# Initialize logger
+logger = get_logger("main")
+
+# Initialize FastAPI app
+app = FastAPI(
+    title="Clara Multi-Agent Backend",
+    description="Intelligent multi-agent system for CRM automation",
+    version="1.0.0"
+)
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Configure appropriately for production
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Global instances
+orchestrator = None
+agents = {}
+voice_stream = None
+
+
+# Pydantic models for API
+class MessageRequest(BaseModel):
+    message: str
+    input_channel: str = "voice"
+    user_id: Optional[str] = None
+    session_id: Optional[str] = None
+    conversation_history: Optional[list] = None
+
+
+class MessageResponse(BaseModel):
+    success: bool
+    message: str
+    agent: str
+    metadata: Dict[str, Any]
+    actions: list
+
+
+@app.on_event("startup")
+async def startup_event():
+    """Initialize system on startup"""
+    global orchestrator, agents, voice_stream
+    
+    try:
+        logger.info("🚀 Starting Clara Multi-Agent Backend...")
+        
+        # Initialize orchestrator
+        logger.info("Initializing orchestrator...")
+        orchestrator = get_orchestrator()
+        
+        # Initialize agents
+        logger.info("Initializing agents...")
+        if settings.SALES_AGENT_ENABLED:
+            agents["sales"] = SalesAgent()
+            logger.info("✓ Sales Agent initialized")
+        
+        if settings.SUPPORT_AGENT_ENABLED:
+            # Placeholder for Husnain's support agent
+            logger.info("✗ Support Agent not yet implemented")
+        
+        if settings.MARKETING_AGENT_ENABLED:
+            # Placeholder for Sheryar's marketing agent
+            logger.info("✗ Marketing Agent not yet implemented")
+        
+        # Initialize voice stream if enabled
+        if settings.VOICE_INPUT_ENABLED:
+            logger.info("Initializing voice stream...")
+            voice_stream = VoiceStream()
+            logger.info("✓ Voice stream initialized")
+        
+        logger.info(f"✨ Clara Backend started successfully on port {settings.ORCHESTRATOR_PORT}")
+        logger.info(f"   Environment: {settings.ENVIRONMENT}")
+        logger.info(f"   Enabled agents: {orchestrator.get_enabled_agents()}")
+        
+    except Exception as e:
+        logger.error(f"Failed to start application: {e}")
+        raise
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Cleanup on shutdown"""
+    logger.info("Shutting down Clara Backend...")
+    
+    if voice_stream:
+        voice_stream.cleanup()
+
+
+@app.get("/")
+async def root():
+    """Root endpoint"""
+    return {
+        "app": "Clara Multi-Agent Backend",
+        "version": "1.0.0",
+        "status": "operational",
+        "endpoints": {
+            "health": "/health",
+            "process_message": "/api/message",
+            "voice_interaction": "/api/voice",
+            "agent_status": "/api/agents/status",
+            "orchestrator_status": "/api/orchestrator/status",
+        }
+    }
+
+
+@app.get("/health")
+async def health_check():
+    """Health check endpoint"""
+    return {
+        "status": "healthy",
+        "orchestrator": "operational" if orchestrator else "not initialized",
+        "agents": {
+            agent_name: "operational"
+            for agent_name in agents.keys()
+        }
+    }
+
+
+@app.post("/api/message", response_model=MessageResponse)
+async def process_message(request: MessageRequest):
+    """
+    Process a text message through the orchestrator
+    
+    Args:
+        request: Message request with text and metadata
+        
+    Returns:
+        Agent response
+    """
+    try:
+        logger.info(f"Processing message from {request.input_channel}")
+        
+        # Process through orchestrator
+        processed_message = orchestrator.process_message(
+            raw_message=request.message,
+            input_channel=request.input_channel,
+            user_info={"user_id": request.user_id} if request.user_id else None,
+            session_id=request.session_id,
+            conversation_history=request.conversation_history
+        )
+        
+        # Route to agent
+        agent_response = orchestrator.route_to_agent(processed_message, agents)
+        
+        if not agent_response.get("success"):
+            raise HTTPException(status_code=500, detail=agent_response.get("error"))
+        
+        return agent_response
+        
+    except Exception as e:
+        logger.error(f"Error processing message: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/voice")
+async def voice_interaction():
+    """
+    Handle complete voice interaction
+    
+    Captures voice input, processes it, and returns voice output
+    """
+    try:
+        if not voice_stream:
+            raise HTTPException(status_code=400, detail="Voice input not enabled")
+        
+        logger.info("Starting voice interaction...")
+        
+        # Define callback for processing message
+        def process_callback(text: str) -> Dict[str, Any]:
+            # Process through orchestrator
+            processed = orchestrator.process_message(
+                raw_message=text,
+                input_channel="voice"
+            )
+            
+            # Route to agent
+            response = orchestrator.route_to_agent(processed, agents)
+            
+            return response
+        
+        # Execute voice interaction
+        result = voice_stream.voice_interaction(process_callback)
+        
+        return result
+        
+    except Exception as e:
+        logger.error(f"Error in voice interaction: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/agents/status")
+async def get_agent_status():
+    """Get status of all agents"""
+    status = {}
+    
+    for agent_name, agent in agents.items():
+        status[agent_name] = agent.get_agent_status()
+    
+    return {
+        "enabled_agents": list(agents.keys()),
+        "agent_details": status
+    }
+
+
+@app.get("/api/orchestrator/status")
+async def get_orchestrator_status():
+    """Get orchestrator status and statistics"""
+    if not orchestrator:
+        raise HTTPException(status_code=500, detail="Orchestrator not initialized")
+    
+    return orchestrator.get_orchestrator_status()
+
+
+@app.post("/api/test/pipeline")
+async def test_pipeline(message: str = "Hello, I'm interested in your product"):
+    """Test the complete pipeline with a sample message"""
+    try:
+        result = orchestrator.test_pipeline(message)
+        
+        return {
+            "test_result": result,
+            "pipeline_status": "operational" if result.get("success") else "failed"
+        }
+        
+    except Exception as e:
+        logger.error(f"Pipeline test failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/agent/{agent_type}/reset/{session_id}")
+async def reset_agent_session(agent_type: str, session_id: str):
+    """Reset a specific agent session"""
+    if agent_type not in agents:
+        raise HTTPException(status_code=404, detail=f"Agent '{agent_type}' not found")
+    
+    agent = agents[agent_type]
+    
+    if hasattr(agent, 'reset_session'):
+        agent.reset_session(session_id)
+        return {"message": f"Session {session_id} reset for {agent_type} agent"}
+    else:
+        raise HTTPException(status_code=400, detail="Agent does not support session reset")
+
+
+def main():
+    """Main entry point"""
+    logger.info("="*60)
+    logger.info("  CLARA MULTI-AGENT BACKEND")
+    logger.info("  Version: 1.0.0")
+    logger.info("  Environment: " + settings.ENVIRONMENT)
+    logger.info("="*60)
+    
+    # Run FastAPI app
+    uvicorn.run(
+        app,
+        host=settings.ORCHESTRATOR_HOST,
+        port=settings.ORCHESTRATOR_PORT,
+        log_level=settings.LOG_LEVEL.lower()
+    )
+
+
+if __name__ == "__main__":
+    main()
+

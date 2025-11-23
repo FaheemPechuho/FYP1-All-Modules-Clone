@@ -1,0 +1,190 @@
+"""
+Sales Agent Prompts - LLM prompts for sales interactions
+"""
+
+SALES_AGENT_SYSTEM_PROMPT = """You are Clara, a professional AI sales assistant. Your role is to:
+
+1. **Qualify Leads**: Gather information about potential customers
+2. **Understand Needs**: Identify pain points and requirements
+3. **Provide Information**: Share relevant product/service details
+4. **Build Relationships**: Maintain a friendly, professional tone
+5. **Drive Actions**: Schedule demos, meetings, or follow-ups when appropriate
+
+## Your Approach:
+- Be conversational and natural, not robotic
+- Ask ONE relevant question at a time
+- Listen actively and respond to what the customer says
+- Don't be pushy - focus on understanding their needs first
+- Be honest if you don't know something
+- Always aim to provide value
+
+## Key Information to Gather (BANT Framework):
+- **Budget**: Financial capability or budget range
+- **Authority**: Are they the decision-maker?
+- **Need**: What problem are they trying to solve?
+- **Timeline**: When do they need a solution?
+
+Additionally gather:
+- Company name and size
+- Industry
+- Contact information (email, phone)
+- Specific requirements or pain points
+
+## Conversation Guidelines:
+1. **Opening**: Greet warmly and ask how you can help
+2. **Discovery**: Ask open-ended questions to understand their situation
+3. **Qualification**: Naturally gather BANT information through conversation
+4. **Value Proposition**: Match their needs to relevant solutions
+5. **Next Steps**: Suggest appropriate actions (demo, meeting, quote)
+
+## Tone:
+- Professional yet friendly
+- Consultative, not salesy
+- Empathetic and helpful
+- Concise but thorough
+
+Remember: Your goal is to help, not just to sell. Focus on whether your product/service truly fits their needs."""
+
+
+LEAD_QUALIFICATION_PROMPT = """Based on the conversation so far, analyze this lead's qualification status.
+
+Conversation history:
+{conversation_history}
+
+Latest message: {latest_message}
+
+IMPORTANT: Respond with ONLY valid JSON. No extra text before or after.
+
+Provide this exact JSON structure:
+{{
+    "qualification_status": "unqualified|marketing_qualified|sales_qualified|opportunity",
+    "lead_score": 0-100,
+    "bant_assessment": {{
+        "budget": "unknown|low|medium|high",
+        "authority": "unknown|no|yes|influencer",
+        "need": "unknown|low|medium|high|urgent",
+        "timeline": "unknown|no_timeline|future|this_quarter|immediate"
+    }},
+    "extracted_info": {{
+        "company_name": "string or null",
+        "industry": "string or null",
+        "company_size": "string or null",
+        "contact_person": "string or null",
+        "email": "string or null",
+        "phone": "string or null",
+        "pain_points": ["list of pain points"],
+        "requirements": ["list of requirements"]
+    }},
+    "next_best_action": "string describing what to do next",
+    "missing_information": ["list of critical info still needed"]
+}}
+
+Be objective and base your assessment only on information explicitly mentioned in the conversation."""
+
+
+LEAD_SCORING_PROMPT = """Calculate a lead score (0-100) based on the following factors:
+
+Lead Information:
+{lead_info}
+
+Scoring Criteria:
+1. **Company Fit (25 points)**
+   - Company size matches target market: 10 points
+   - Industry relevance: 10 points
+   - Geographic location: 5 points
+
+2. **Engagement Level (25 points)**
+   - Response quality and detail: 10 points
+   - Number of interactions: 5 points
+   - Interest level: 10 points
+
+3. **BANT Qualification (30 points)**
+   - Budget identified: 10 points
+   - Authority confirmed: 10 points
+   - Need validated: 5 points
+   - Timeline established: 5 points
+
+4. **Intent Signals (20 points)**
+   - Asked about pricing: 5 points
+   - Requested demo/meeting: 10 points
+   - Urgency indicated: 5 points
+
+Provide your scoring as JSON:
+{
+    "total_score": 0-100,
+    "category_scores": {
+        "company_fit": 0-25,
+        "engagement": 0-25,
+        "bant": 0-30,
+        "intent": 0-20
+    },
+    "reasoning": "brief explanation of the score"
+}"""
+
+
+FOLLOW_UP_SUGGESTION_PROMPT = """Based on this lead's status and conversation, suggest appropriate follow-up actions.
+
+Lead Status: {lead_status}
+Last Interaction: {last_message}
+Lead Score: {lead_score}
+
+Suggest:
+1. When to follow up (immediate, 1 day, 3 days, 1 week, etc.)
+2. What communication method (email, call, message)
+3. What topics to cover in follow-up
+4. Any resources to send
+
+Provide as JSON:
+{
+    "follow_up_timing": "immediate|1_day|3_days|1_week|2_weeks|1_month",
+    "communication_method": "email|call|message",
+    "suggested_topics": ["topic1", "topic2"],
+    "resources_to_send": ["resource1", "resource2"],
+    "next_step_description": "string describing the next step"
+}"""
+
+
+OBJECTION_HANDLING_PROMPT = """The prospect has raised an objection or concern. Help craft an appropriate response.
+
+Objection: {objection}
+
+Context: {context}
+
+Provide a response that:
+1. Acknowledges their concern
+2. Addresses it thoughtfully
+3. Provides relevant information or alternatives
+4. Moves the conversation forward
+
+Keep the response natural, empathetic, and solution-focused. Don't be defensive."""
+
+
+def get_sales_prompt_with_context(
+    lead_info: dict,
+    conversation_history: list,
+    company_context: str = ""
+) -> str:
+    """
+    Generate a contextualized sales prompt
+    
+    Args:
+        lead_info: Information gathered about the lead
+        conversation_history: Recent conversation history
+        company_context: Information about your company/product
+        
+    Returns:
+        Contextualized system prompt
+    """
+    context_addition = ""
+    
+    if lead_info:
+        context_addition += f"\n\n## Current Lead Information:\n"
+        for key, value in lead_info.items():
+            if value:
+                context_addition += f"- {key}: {value}\n"
+    
+    if company_context:
+        context_addition += f"\n\n## Company/Product Context:\n{company_context}"
+    
+    return SALES_AGENT_SYSTEM_PROMPT + context_addition
+
