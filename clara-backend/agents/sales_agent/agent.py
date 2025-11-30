@@ -53,6 +53,12 @@ class SalesAgent(BaseAgent):
         # Store lead information per session
         self.lead_data: Dict[str, Dict[str, Any]] = {}
         
+        # Track active call IDs per session
+        self.active_calls: Dict[str, str] = {}  # session_id -> call_id
+        
+        # Track call start times per session (for duration calculation)
+        self.call_start_times: Dict[str, Any] = {}  # session_id -> datetime
+        
         logger.info("Sales Agent fully initialized and ready")
     
     def process(self, message_data: Dict[str, Any]) -> Dict[str, Any]:
@@ -91,9 +97,23 @@ class SalesAgent(BaseAgent):
             )
             
             # Update lead data with extracted information
-            self.lead_data[session_id].update(
-                qualification_result.get("extracted_info", {})
-            )
+            extracted_info = qualification_result.get("extracted_info", {})
+            
+            # Normalize email if present (fixes "at" -> "@" issues from voice transcription)
+            if extracted_info.get("email"):
+                email = extracted_info["email"]
+                # Normalize email: replace "at" with "@", lowercase, remove spaces
+                import re
+                normalized_email = email.lower().strip()
+                normalized_email = re.sub(r'\s+at\s+', '@', normalized_email, flags=re.IGNORECASE)
+                normalized_email = re.sub(r'\s+@\s+', '@', normalized_email)
+                normalized_email = normalized_email.replace(' ', '')
+                if '@' in normalized_email and '.' in normalized_email.split('@')[1]:
+                    extracted_info["email"] = normalized_email
+                    if normalized_email != email:
+                        logger.info(f"Normalized email in extracted_info: '{email}' -> '{normalized_email}'")
+            
+            self.lead_data[session_id].update(extracted_info)
             
             # Step 2: Calculate lead score
             score_breakdown = self.scorer.calculate_score(
@@ -117,6 +137,7 @@ class SalesAgent(BaseAgent):
             # Step 4: Update CRM if lead is qualified enough
             crm_lead = None
             crm_updated = False
+            call_id = None
             
             if self._should_update_crm(qualification_result, score_breakdown):
                 crm_lead = self.crm_connector.create_or_update_lead(
@@ -128,6 +149,21 @@ class SalesAgent(BaseAgent):
                 
                 if crm_updated:
                     logger.info(f"CRM updated successfully for session {session_id}")
+                    
+                    # Start call tracking if not already started
+                    if session_id not in self.active_calls:
+                        from datetime import datetime
+                        
+                        call_id = self.crm_connector.start_call_tracking(
+                            lead_id=crm_lead["id"],
+                            session_id=session_id
+                        )
+                        if call_id:
+                            self.active_calls[session_id] = call_id
+                            self.call_start_times[session_id] = datetime.utcnow()
+                            logger.info(f"Started call tracking: {call_id}")
+                    else:
+                        call_id = self.active_calls[session_id]
             
             # Step 5: Build response
             actions = self._get_actions_taken(
@@ -146,6 +182,8 @@ class SalesAgent(BaseAgent):
                     "score_grade": score_breakdown.get("score_grade"),
                     "crm_updated": crm_updated,
                     "lead_id": crm_lead.get("id") if crm_lead else None,
+                    "call_id": self.active_calls.get(session_id),
+                    "call_tracking_active": session_id in self.active_calls,
                     "bant_assessment": qualification_result.get("bant_assessment"),
                     "next_best_action": qualification_result.get("next_best_action"),
                     "missing_information": qualification_result.get("missing_information", []),
@@ -203,7 +241,7 @@ class SalesAgent(BaseAgent):
             )
             
             if guidance:
-                system_prompt += f"\n\n## Current Guidance:\n{guidance}"
+                system_prompt += f"\n\n## Current Guidance:\n{guidance}\n\nREMEMBER: Keep your response SHORT (2-3 sentences max). Be natural and conversational."
             
             # Prepare messages for LLM
             messages = [{"role": "system", "content": system_prompt}]
@@ -215,12 +253,12 @@ class SalesAgent(BaseAgent):
                 if msg["role"] != "system"
             ])
             
-            # Generate response
+            # Generate response - keep it short for voice conversations
             response = self.client.chat.completions.create(
                 model=self.model,
                 messages=messages,
                 temperature=0.7,
-                max_tokens=300,
+                max_tokens=150,  # Reduced for shorter, more natural voice responses
             )
             
             response_text = response.choices[0].message.content.strip()
@@ -243,64 +281,98 @@ class SalesAgent(BaseAgent):
         
         guidance = []
         
+        # Always emphasize brevity
+        guidance.append("Keep response SHORT (2-3 sentences). Be natural and conversational.")
+        
         # If critical info is missing, focus on gathering it
         if missing_info:
-            guidance.append(
-                f"You still need to gather: {', '.join(missing_info)}. "
-                "Ask about ONE of these naturally in the conversation."
-            )
+            # Pick the most important missing info
+            priority_info = missing_info[0] if missing_info else None
+            if priority_info:
+                guidance.append(
+                    f"Ask about: {priority_info}. Keep it to ONE short question."
+                )
         
         # If score is high, move towards closing/demo
         if score >= 70:
             guidance.append(
-                "This is a hot lead! Consider suggesting a demo or meeting. "
-                "Be enthusiastic but professional."
+                "Hot lead! Briefly suggest a demo or meeting (1 sentence)."
             )
         elif score >= 50:
             guidance.append(
-                "This lead shows promise. Continue building rapport and "
-                "understanding their needs deeply."
+                "Good lead. Continue building rapport with short, focused responses."
             )
         elif score < 30:
             guidance.append(
-                "Lead needs more qualification. Focus on understanding if "
-                "there's a real fit before investing too much time."
+                "Needs more qualification. Ask ONE short question to understand fit."
             )
         
-        # Add next best action
+        # Add next best action (briefly)
         if next_action:
-            guidance.append(f"Next step: {next_action}")
+            # Make next_action shorter if it's too long
+            short_action = next_action[:100] + "..." if len(next_action) > 100 else next_action
+            guidance.append(f"Next: {short_action}")
         
-        return "\n".join(guidance)
+        return " | ".join(guidance)  # Use separator instead of newlines for brevity
     
     def _should_update_crm(
         self,
         qualification_result: Dict[str, Any],
         score_breakdown: Dict[str, Any]
     ) -> bool:
-        """Determine if CRM should be updated"""
-        # Update CRM if:
-        # 1. Lead score is above 30
-        # 2. OR qualification status is not unqualified
-        # 3. OR we have at least company name and contact info
+        """
+        Determine if CRM should be updated
         
-        score = score_breakdown.get("total_score", 0)
-        qual_status = qualification_result.get("qualification_status")
+        IMPORTANT: Only create leads when we have minimum required information!
+        This prevents creating incomplete/null records in the database.
+        """
         extracted_info = qualification_result.get("extracted_info", {})
         
-        if score >= 30:
+        # Check for contact information (email or phone is required)
+        has_email = bool(extracted_info.get("email"))
+        has_phone = bool(extracted_info.get("phone"))
+        has_contact_method = has_email or has_phone
+        
+        if not has_contact_method:
+            logger.debug("Not updating CRM: Missing email and phone")
+            return False
+        
+        # Check qualification criteria
+        score = score_breakdown.get("total_score", 0)
+        qual_status = qualification_result.get("qualification_status")
+        
+        # Update CRM if ANY of these conditions are met:
+        # 1. Lead is qualified (not unqualified) - this is the main indicator
+        # 2. Lead score is above 30 (shows engagement)
+        # 3. We have company/contact name + contact method
+        # 4. We have industry + contact method (can infer company name)
+        
+        company_name = extracted_info.get("company_name")
+        contact_person = extracted_info.get("contact_person") or extracted_info.get("name")
+        industry = extracted_info.get("industry")
+        
+        # Primary condition: Qualified lead with contact info
+        if qual_status and qual_status != "unqualified" and has_contact_method:
+            logger.debug(f"Updating CRM: Qualified as {qual_status} with contact info")
             return True
         
-        if qual_status and qual_status != "unqualified":
+        # Secondary: High engagement score
+        if score >= 30 and has_contact_method:
+            logger.debug(f"Updating CRM: Lead score {score} >= 30 with contact info")
             return True
         
-        # Check if we have minimal info
-        has_company = bool(extracted_info.get("company_name"))
-        has_contact = bool(extracted_info.get("email") or extracted_info.get("phone"))
-        
-        if has_company and has_contact:
+        # Tertiary: Has company/contact name
+        has_company_or_contact = bool(company_name or contact_person)
+        if has_company_or_contact and has_contact_method:
+            logger.debug("Updating CRM: Has company/contact + contact method")
             return True
         
+        # Quaternary: Has industry (can generate company name from industry)
+        if industry and has_contact_method:
+            logger.debug(f"Updating CRM: Has industry ({industry}) + contact method (will generate company name)")
+            return True
+        
+        logger.debug("Not updating CRM: Insufficient information collected")
         return False
     
     def _get_actions_taken(
@@ -359,10 +431,86 @@ class SalesAgent(BaseAgent):
         Args:
             session_id: Session ID to reset
         """
+        # End call tracking if active
+        if session_id in self.active_calls:
+            self.end_call_session(session_id, outcome="cancelled")
+        
         self.clear_conversation_history(session_id)
         
         if session_id in self.lead_data:
             del self.lead_data[session_id]
         
+        if session_id in self.call_start_times:
+            del self.call_start_times[session_id]
+        
         logger.info(f"Reset session: {session_id}")
+    
+    def end_call_session(self, session_id: str, outcome: str = "completed"):
+        """
+        End call tracking for a session
+        
+        Args:
+            session_id: Session ID
+            outcome: Call outcome (completed, qualified, not_interested, cancelled)
+        """
+        try:
+            if session_id not in self.active_calls:
+                logger.debug(f"No active call to end for session: {session_id}")
+                return
+            
+            from datetime import datetime
+            
+            call_id = self.active_calls[session_id]
+            conversation_history = self.get_conversation_history(session_id)
+            
+            # Calculate duration
+            if session_id in self.call_start_times:
+                start_time = self.call_start_times[session_id]
+                duration = int((datetime.utcnow() - start_time).total_seconds())
+            else:
+                # Estimate duration from conversation length (rough estimate)
+                duration = len(conversation_history) * 30  # ~30 seconds per exchange
+            
+            # Get qualification and score data if available
+            lead_data = self.lead_data.get(session_id, {})
+            
+            # Re-run qualification one final time for the complete conversation
+            try:
+                qualification_result = self.qualifier.qualify_lead(
+                    conversation_history=conversation_history,
+                    latest_message="",
+                    current_lead_info=lead_data
+                )
+                
+                score_breakdown = self.scorer.calculate_score(
+                    lead_info=lead_data,
+                    bant_assessment=qualification_result.get("bant_assessment", {}),
+                    conversation_history=conversation_history,
+                    extracted_entities={}
+                )
+            except Exception as e:
+                logger.error(f"Error getting final qualification: {e}")
+                qualification_result = None
+                score_breakdown = None
+            
+            # End call tracking
+            success = self.crm_connector.end_call_tracking(
+                call_id=call_id,
+                duration=duration,
+                outcome=outcome,
+                conversation_history=conversation_history,
+                qualification_result=qualification_result,
+                score_breakdown=score_breakdown
+            )
+            
+            if success:
+                logger.info(f"Ended call tracking for session {session_id} (duration: {duration}s)")
+                del self.active_calls[session_id]
+                if session_id in self.call_start_times:
+                    del self.call_start_times[session_id]
+            else:
+                logger.error(f"Failed to end call tracking for session {session_id}")
+            
+        except Exception as e:
+            logger.error(f"Error ending call session: {e}")
 

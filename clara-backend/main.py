@@ -176,7 +176,7 @@ async def process_message(request: MessageRequest):
 @app.post("/api/voice")
 async def voice_interaction():
     """
-    Handle complete voice interaction
+    Handle complete voice interaction (single turn)
     
     Captures voice input, processes it, and returns voice output
     """
@@ -206,6 +206,55 @@ async def voice_interaction():
         
     except Exception as e:
         logger.error(f"Error in voice interaction: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/voice/continuous")
+async def continuous_voice_interaction(session_id: Optional[str] = None):
+    """
+    Handle continuous voice interaction
+    
+    Continues conversation until closing words are detected (goodbye, exit, quit, etc.)
+    Maintains conversation context across turns.
+    
+    Args:
+        session_id: Optional session ID to maintain conversation context
+    """
+    try:
+        if not voice_stream:
+            raise HTTPException(status_code=400, detail="Voice input not enabled")
+        
+        logger.info("Starting continuous voice interaction...")
+        
+        # Use provided session_id or generate one
+        if not session_id:
+            import uuid
+            session_id = f"voice-session-{uuid.uuid4().hex[:8]}"
+        
+        # Define callback for processing message
+        def process_callback(text: str) -> Dict[str, Any]:
+            # Process through orchestrator with session_id
+            processed = orchestrator.process_message(
+                raw_message=text,
+                input_channel="voice",
+                session_id=session_id
+            )
+            
+            # Route to agent
+            response = orchestrator.route_to_agent(processed, agents)
+            
+            return response
+        
+        # Execute continuous voice interaction
+        result = voice_stream.continuous_voice_interaction(
+            process_callback,
+            session_id=session_id
+        )
+        
+        return result
+        
+    except Exception as e:
+        logger.error(f"Error in continuous voice interaction: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

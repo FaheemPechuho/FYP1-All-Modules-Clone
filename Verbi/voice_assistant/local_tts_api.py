@@ -15,13 +15,13 @@ class TextToSpeechRequest(BaseModel):
         text (str): The text to convert to speech.
         language (str): The language of the text.
         accent (str): The accent to use for the speech.
-        speed (float): The speed of the speech.
+        speed (float): The speed of the speech (0.9 recommended for natural pace).
         filename (str): The desired name for the output audio file.
     """
     text: str
     language: str = 'EN'
-    accent: str = 'EN-US'
-    speed: float = 1.0
+    accent: str = 'EN-US'  # Best natural voice: EN-US
+    speed: float = 0.9  # Slightly slower for more natural sound
     filename: str = Field(default_factory=lambda: f"{uuid.uuid4()}.wav")
 
 def get_device():

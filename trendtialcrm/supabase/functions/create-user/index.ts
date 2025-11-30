@@ -10,9 +10,13 @@ const CORS_HEADERS = {
 };
 
 serve(async (req: Request) => {
-  // Original code below, effectively commented out by the early return
-  // console.log("Create user function: Received request method:", req.method);
-  // // Handle OPTIONS preflight request
+  // Handle OPTIONS preflight request
+  if (req.method === 'OPTIONS') {
+    return new Response(null, {
+      status: 204,
+      headers: CORS_HEADERS,
+    });
+  }
 
   try {
     console.log("Create user function: Attempting to read request body as text...");
