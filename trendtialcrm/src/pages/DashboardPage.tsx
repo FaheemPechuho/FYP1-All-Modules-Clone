@@ -8,6 +8,7 @@ import { useMeetingsQuery } from '../hooks/queries/useMeetingsQuery';
 import { useUsersQuery } from '../hooks/queries/useUsersQuery';
 import { FollowUp, Meeting, UserProfile, Lead } from '../types'; // Ensure Lead, Meeting, UserProfile are imported if not already
 import StatCard from '../components/dashboard/StatCard';
+import AIInsightsCard from '../components/dashboard/AIInsightsCard';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, PointElement, LineElement, Title, ChartEvent, ActiveElement } from 'chart.js';
 import { Pie, Line, getElementAtEvent } from 'react-chartjs-2';
 
@@ -397,6 +398,7 @@ const DashboardPage: React.FC = () => {
           <StatCard title="SCHEDULED MEETINGS" value={scheduledMeetings.toString()} icon={<MeetingsIcon />} />
           <StatCard title="ACTIVE AGENTS" value={activeAgents.toString()} icon={<UsersIcon />} />
           <StatCard title="TOTAL EXPECTED REVENUE" value={`$${totalExpectedRevenue.toLocaleString()}`} icon={<LeadsIcon />} />
+          <AIInsightsCard leads={filteredLeadsArray} />
         </div>
         
         {/* Date Filter Inputs */}

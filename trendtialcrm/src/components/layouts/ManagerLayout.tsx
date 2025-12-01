@@ -5,6 +5,7 @@ import NavLink from '../common/NavLink';
 import { useAuth } from '../../contexts/AuthContext';
 import { Menu, Transition } from '@headlessui/react';
 import NotificationBell from '../notifications/NotificationBell';
+import AIAssistantButton from '../ai/AIAssistantButton';
 
 // Re-using Icons from AgentLayout or a shared Icon component file
 const MenuIcon = ({ className = 'w-6 h-6' }) => (
@@ -39,6 +40,7 @@ const ManagerLayout: React.FC = () => {
     { to: '/leads', label: 'All Leads' }, 
     { to: '/follow-ups', label: 'All Follow-Ups' },
     { to: '/meetings', label: 'All Meetings' },
+    { to: '/marketing', label: 'Marketing Hub' },
     { to: '/todos', label: 'To-Do List' },
     { to: '/daily-report', label: 'Daily Reports' },
     { to: '/attendance', label: 'Attendance' },
@@ -193,6 +195,8 @@ const ManagerLayout: React.FC = () => {
 
         <main className="flex-1 py-8 px-4 sm:px-6 lg:px-8 bg-background overflow-y-auto">
           <Outlet />
+          {/* AI Assistant Button - Available everywhere */}
+          <AIAssistantButton />
         </main>
       </div>
     </div>

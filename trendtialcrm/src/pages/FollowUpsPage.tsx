@@ -661,6 +661,16 @@ const FollowUpsPage: React.FC = () => {
                           Edit
                         </button>
 
+                        <button
+                          onClick={() => {
+                            // Open AI message generation
+                            alert('Opening AI message generation for this follow-up...');
+                          }}
+                          className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-purple-700 bg-purple-50 border border-purple-200 rounded-md hover:bg-purple-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition-colors duration-200"
+                        >
+                          🤖 Generate Message
+                        </button>
+
                         {followUp.status !== 'Completed' && followUp.status !== 'Cancelled' && (
                           <>
                             <button
