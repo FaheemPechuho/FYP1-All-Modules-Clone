@@ -1,5 +1,26 @@
 """
 Clara Multi-Agent Backend - Main Application
+
+This is the main entry point for the Clara Multi-Agent system.
+It initializes FastAPI, sets up agents (Sales, Marketing, Support),
+and provides REST API endpoints for message processing and voice interactions.
+
+Features:
+- Sales Agent: Lead management and CRM operations
+- Marketing Agent: AI-powered content generation and lead analysis
+- Support Agent: Customer support (placeholder)
+- Voice Stream: Voice input/output processing
+
+Marketing Agent Endpoints (/api/marketing/*):
+- analyze-lead: Get lead temperature and recommendations
+- analyze-batch: Batch lead analysis with prioritization
+- generate-email: AI-generated email content
+- generate-sms: SMS message generation
+- generate-call-script: Cold call script generation
+- generate-ad-copy: Platform-specific ad copy
+- campaign-insights: Campaign performance analytics
+
+@author Sheryar
 """
 
 import asyncio
@@ -11,6 +32,7 @@ import uvicorn
 
 from orchestrator.core import get_orchestrator
 from agents.sales_agent.agent import SalesAgent
+from agents.marketing_agent.agent import MarketingAgent
 from input_streams.voice_stream import VoiceStream
 from utils.logger import get_logger
 from config import settings
@@ -80,8 +102,9 @@ async def startup_event():
             logger.info("✗ Support Agent not yet implemented")
         
         if settings.MARKETING_AGENT_ENABLED:
-            # Placeholder for Sheryar's marketing agent
-            logger.info("✗ Marketing Agent not yet implemented")
+            # Marketing Agent - handles content generation, lead analysis, campaigns
+            agents["marketing"] = MarketingAgent()
+            logger.info("✓ Marketing Agent initialized")
         
         # Initialize voice stream if enabled
         if settings.VOICE_INPUT_ENABLED:
@@ -310,6 +333,15 @@ async def reset_agent_session(agent_type: str, session_id: str):
         return {"message": f"Session {session_id} reset for {agent_type} agent"}
     else:
         raise HTTPException(status_code=400, detail="Agent does not support session reset")
+
+
+# =============================================================================
+# MARKETING AGENT ROUTES (LangChain + Gemini)
+# =============================================================================
+
+# Import and include marketing routes from routes directory
+from routes.marketing import router as marketing_router
+app.include_router(marketing_router)
 
 
 def main():

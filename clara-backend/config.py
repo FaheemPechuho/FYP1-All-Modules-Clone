@@ -29,6 +29,7 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: str = Field(default="")
     GROQ_API_KEY: str = Field(default="")  # Primary - using Groq for LLM
     ANTHROPIC_API_KEY: str = Field(default="")
+    GEMINI_API_KEY: str = Field(default="AIzaSyADeYgcwx3_wLr8zNxnQJIV4cMYxT-59CA")  # Google Gemini for marketing content
     CARTESIA_API_KEY: str = Field(default="")  # For TTS
     DEEPGRAM_API_KEY: str = Field(default="")  # Backup for STT/TTS
     
@@ -40,7 +41,7 @@ class Settings(BaseSettings):
     # ===== Agent Configuration =====
     SALES_AGENT_ENABLED: bool = True
     SUPPORT_AGENT_ENABLED: bool = False
-    MARKETING_AGENT_ENABLED: bool = False
+    MARKETING_AGENT_ENABLED: bool = True  # Enabled for Marketing Hub integration
     
     # LLM Models (using Groq Llama 3.3 70B - Latest)
     SALES_AGENT_MODEL: str = "llama-3.3-70b-versatile"  # Groq 70B (newest model)
@@ -120,6 +121,7 @@ def get_api_key(service: str) -> str:
         "openai": settings.OPENAI_API_KEY,
         "groq": settings.GROQ_API_KEY,
         "anthropic": settings.ANTHROPIC_API_KEY,
+        "gemini": settings.GEMINI_API_KEY,  # Google Gemini API for marketing content
     }
     return keys.get(service, "")
 
