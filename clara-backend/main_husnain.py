@@ -97,6 +97,13 @@ try:
 except Exception as e:
     print(f"⚠️  Failed to load ticket routes: {e}")
 
+try:
+    from agents.support_agent.kb_api import router as kb_router
+    app.include_router(kb_router)
+    print("✅ Knowledge Base API routes loaded")
+except Exception as e:
+    print(f"⚠️  Failed to load KB routes: {e}")
+
 
 if __name__ == "__main__":
     import uvicorn
