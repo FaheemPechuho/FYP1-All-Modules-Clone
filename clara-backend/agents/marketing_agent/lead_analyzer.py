@@ -1,7 +1,19 @@
-
-### FILE: lead_analyzer.py ###
 """
 Lead Analyzer - Analyze leads for marketing intelligence
+
+This module provides lead scoring and temperature classification:
+- Temperature scoring (0-100) based on deal value, stage, recency, and lead score
+- Temperature classification: Hot (>=70), Warm (40-69), Cold (<40)
+- Priority calculation for marketing actions
+- Risk factor identification
+- Content and action recommendations
+
+Scoring Factors:
+- Deal Value: High (>$10k) = 25pts, Medium (>$1k) = 15pts, Low = 5pts
+- Pipeline Stage: Negotiation = 25pts, Proposal = 20pts, etc.
+- Recency: Today = 20pts, This week = 15pts, This month = 10pts
+- Lead Score: 25% of existing score value
+
 Owner: Sheryar
 """
 

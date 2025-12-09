@@ -1,6 +1,18 @@
-### FILE: nurturing_engine.py ###
 """
 Nurturing Engine - Design and manage lead nurturing sequences
+
+This module provides automated nurturing sequence recommendations:
+- Standard sequences for different lead types (new, cold, high-value, proposal)
+- Sequence selection based on lead attributes
+- Step scheduling with dates
+- Multi-channel touchpoints (email, call, SMS, LinkedIn)
+
+Available Sequences:
+1. new_lead_welcome: 14-day welcome sequence for new leads
+2. cold_lead_reengagement: 21-day re-engagement for dormant leads
+3. proposal_follow_up: 10-day closing sequence after proposal
+4. high_value_lead: 5-day fast-track for high-value opportunities
+
 Owner: Sheryar
 """
 

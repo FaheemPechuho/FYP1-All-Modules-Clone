@@ -1,13 +1,25 @@
-### FILE: content_generator.py ###
 """
-Content Generator - Generate marketing content using LLM
+Content Generator - LangChain + Gemini powered content generation
 Owner: Sheryar
+
+This module handles AI-powered content generation for marketing purposes
+using LangChain with Google Gemini as the primary LLM provider.
+
+Features:
+- Personalized email generation based on lead data
+- SMS message creation with character limits
+- Cold call script generation with objection handlers
+- Platform-specific ad copy (Facebook, TikTok, LinkedIn, Google)
+- Batch content generation for multiple leads
+
+LangChain Integration:
+- Uses ChatGoogleGenerativeAI for Gemini models
+- Structured output parsing with JSON
+- Template-based prompting with LangChain PromptTemplates
 """
 
 from typing import Dict, Any, Optional, List
 import json
-from groq import Groq
-from openai import OpenAI
 from utils.logger import get_logger
 from config import get_api_key
 from .prompts import (
@@ -24,25 +36,131 @@ from .prompts import (
 
 logger = get_logger("content_generator")
 
+# =============================================================================
+# LANGCHAIN INITIALIZATION
+# =============================================================================
+
+def init_langchain_llm():
+    """
+    Initialize LangChain LLM with best available provider.
+    
+    Priority:
+    1. Google Gemini (via langchain-google-genai) - Best for creative content
+    2. Groq (via langchain) - Fast inference
+    3. OpenAI (via langchain) - Fallback
+    """
+    gemini_key = get_api_key("gemini")
+    groq_key = get_api_key("groq")
+    openai_key = get_api_key("openai")
+    
+    # Try Gemini first (best for marketing content)
+    if gemini_key and gemini_key.startswith("AIza"):
+        try:
+            from langchain_google_genai import ChatGoogleGenerativeAI
+            
+            llm = ChatGoogleGenerativeAI(
+                model="gemini-1.5-flash",
+                google_api_key=gemini_key,
+                temperature=0.7,
+                max_output_tokens=1500,
+                convert_system_message_to_human=True
+            )
+            logger.info("LangChain initialized with Google Gemini (gemini-1.5-flash)")
+            return llm, "gemini"
+            
+        except ImportError as e:
+            logger.warning(f"langchain-google-genai not installed: {e}")
+        except Exception as e:
+            logger.error(f"Error initializing Gemini: {e}")
+    
+    # Fallback to Groq
+    if groq_key and groq_key.startswith("gsk_"):
+        try:
+            from langchain_groq import ChatGroq
+            
+            llm = ChatGroq(
+                model="llama-3.3-70b-versatile",
+                groq_api_key=groq_key,
+                temperature=0.7,
+                max_tokens=1500
+            )
+            logger.info("LangChain initialized with Groq (llama-3.3-70b)")
+            return llm, "groq"
+            
+        except ImportError:
+            # Try alternative import
+            try:
+                from langchain.chat_models import ChatGroq
+                llm = ChatGroq(
+                    model="llama-3.3-70b-versatile",
+                    groq_api_key=groq_key,
+                    temperature=0.7
+                )
+                return llm, "groq"
+            except ImportError:
+                logger.warning("langchain-groq not installed")
+        except Exception as e:
+            logger.error(f"Error initializing Groq: {e}")
+    
+    # Fallback to OpenAI
+    if openai_key:
+        try:
+            from langchain_openai import ChatOpenAI
+            
+            llm = ChatOpenAI(
+                model="gpt-4o-mini",
+                api_key=openai_key,
+                temperature=0.7,
+                max_tokens=1500
+            )
+            logger.info("LangChain initialized with OpenAI (gpt-4o-mini)")
+            return llm, "openai"
+            
+        except ImportError:
+            try:
+                from langchain.chat_models import ChatOpenAI
+                llm = ChatOpenAI(
+                    model="gpt-4o-mini",
+                    openai_api_key=openai_key,
+                    temperature=0.7
+                )
+                return llm, "openai"
+            except ImportError:
+                logger.warning("langchain-openai not installed")
+        except Exception as e:
+            logger.error(f"Error initializing OpenAI: {e}")
+    
+    logger.warning("No LLM provider configured - using fallback templates")
+    return None, "fallback"
+
+
+# =============================================================================
+# CONTENT GENERATOR CLASS
+# =============================================================================
 
 class ContentGenerator:
-    """Generate marketing content using LLM"""
+    """
+    Generate marketing content using LangChain + LLM.
+    
+    Uses LangChain for:
+    - Structured prompt templates
+    - Output parsing
+    - Chain composition
+    
+    Supported LLM providers (in priority order):
+    1. Google Gemini (primary - best for creative content)
+    2. Groq (fast inference)
+    3. OpenAI (fallback)
+    """
     
     def __init__(self):
-        """Initialize content generator with LLM client"""
-        api_key = get_api_key("groq") or get_api_key("openai")
+        """Initialize content generator with LangChain LLM"""
+        self.llm, self.provider = init_langchain_llm()
         
-        if not api_key:
-            raise ValueError("No LLM API key configured")
-        
-        if api_key.startswith("gsk_"):
-            self.client = Groq(api_key=api_key)
-            self.model = "llama-3.3-70b-versatile"
+        if self.llm:
+            logger.info(f"ContentGenerator initialized with {self.provider}")
         else:
-            self.client = OpenAI(api_key=api_key)
-            self.model = "gpt-4o-mini"
-        
-        logger.info(f"Content Generator initialized with model: {self.model}")
+            logger.warning("ContentGenerator using fallback templates")
     
     def generate_email(
         self,
@@ -50,7 +168,17 @@ class ContentGenerator:
         email_type: str = "follow_up",
         tone: str = "professional"
     ) -> Dict[str, Any]:
-        """Generate personalized email content"""
+        """
+        Generate personalized email content using LangChain.
+        
+        Args:
+            lead_info: Lead data dictionary with name, company, industry, etc.
+            email_type: Type of email (follow_up, intro, proposal, etc.)
+            tone: Email tone (professional, friendly, casual, etc.)
+            
+        Returns:
+            Dictionary with email components (subject, body, cta, etc.)
+        """
         try:
             prompt = EMAIL_GENERATION_PROMPT.format(
                 email_type=EMAIL_TYPES.get(email_type, email_type),
@@ -70,6 +198,7 @@ class ContentGenerator:
                 result["email_type"] = email_type
                 result["tone"] = tone
                 result["lead_id"] = lead_info.get("id")
+                result["provider"] = self.provider
             
             return result or self._get_fallback_email(lead_info, email_type)
             
@@ -83,7 +212,17 @@ class ContentGenerator:
         sms_type: str = "quick_follow_up",
         context: str = ""
     ) -> Dict[str, Any]:
-        """Generate SMS message"""
+        """
+        Generate SMS message using LangChain.
+        
+        Args:
+            lead_info: Lead data dictionary
+            sms_type: Type of SMS (follow_up, reminder, appointment, etc.)
+            context: Additional context for the message
+            
+        Returns:
+            Dictionary with SMS content and metadata
+        """
         try:
             prompt = SMS_GENERATION_PROMPT.format(
                 lead_name=lead_info.get("name") or lead_info.get("client_name") or "",
@@ -98,6 +237,10 @@ class ContentGenerator:
             if result:
                 result["sms_type"] = sms_type
                 result["lead_id"] = lead_info.get("id")
+                result["provider"] = self.provider
+                # Calculate character count if not provided
+                if "character_count" not in result and "message" in result:
+                    result["character_count"] = len(result["message"])
             
             return result or self._get_fallback_sms(lead_info)
             
@@ -110,7 +253,16 @@ class ContentGenerator:
         lead_info: Dict[str, Any],
         objective: str = "discovery"
     ) -> Dict[str, Any]:
-        """Generate cold call script"""
+        """
+        Generate cold call script using LangChain.
+        
+        Args:
+            lead_info: Lead data dictionary
+            objective: Call objective (discovery, demo, follow_up, etc.)
+            
+        Returns:
+            Dictionary with script sections (opener, questions, objections, etc.)
+        """
         try:
             prompt = COLD_CALL_SCRIPT_PROMPT.format(
                 lead_name=lead_info.get("name") or lead_info.get("client_name") or "the prospect",
@@ -128,6 +280,7 @@ class ContentGenerator:
             if result:
                 result["objective"] = objective
                 result["lead_id"] = lead_info.get("id")
+                result["provider"] = self.provider
             
             return result or self._get_fallback_call_script(lead_info)
             
@@ -141,7 +294,17 @@ class ContentGenerator:
         target_profile: Dict[str, Any],
         objective: str = "awareness"
     ) -> Dict[str, Any]:
-        """Generate ad copy for specific platform"""
+        """
+        Generate platform-specific ad copy using LangChain.
+        
+        Args:
+            platform: Ad platform (facebook, tiktok, linkedin, google)
+            target_profile: Target audience profile
+            objective: Campaign objective (awareness, conversion, etc.)
+            
+        Returns:
+            Dictionary with ad components (headlines, text, cta, etc.)
+        """
         try:
             prompt = AD_COPY_PROMPT.format(
                 platform=platform,
@@ -158,6 +321,7 @@ class ContentGenerator:
                 result["platform"] = platform
                 result["objective"] = objective
                 result["platform_limits"] = AD_PLATFORMS.get(platform, {})
+                result["provider"] = self.provider
             
             return result or self._get_fallback_ad_copy(platform)
             
@@ -171,7 +335,17 @@ class ContentGenerator:
         content_type: str,
         **kwargs
     ) -> List[Dict[str, Any]]:
-        """Generate content for multiple leads"""
+        """
+        Generate content for multiple leads.
+        
+        Args:
+            leads: List of lead data dictionaries
+            content_type: Type of content (email, sms, call_script)
+            **kwargs: Additional parameters for content generation
+            
+        Returns:
+            List of generated content dictionaries
+        """
         results = []
         
         for lead in leads:
@@ -205,34 +379,62 @@ class ContentGenerator:
         
         return results
     
+    # =========================================================================
+    # LLM CALL METHOD
+    # =========================================================================
+    
     def _call_llm(self, prompt: str) -> Optional[Dict[str, Any]]:
-        """Make LLM API call and parse JSON response"""
+        """
+        Make LLM API call using LangChain and parse JSON response.
+        
+        Args:
+            prompt: The content generation prompt
+            
+        Returns:
+            Parsed JSON response or None if failed
+        """
         try:
+            # Return None if no LLM configured
+            if not self.llm:
+                logger.warning("No LLM configured, using fallback")
+                return None
+            
+            # Build messages for the LLM
+            from langchain_core.messages import SystemMessage, HumanMessage
+            
             messages = [
-                {"role": "system", "content": MARKETING_AGENT_SYSTEM_PROMPT},
-                {"role": "user", "content": prompt + "\n\nRespond with ONLY valid JSON."}
+                SystemMessage(content=MARKETING_AGENT_SYSTEM_PROMPT),
+                HumanMessage(content=f"{prompt}\n\nRespond with ONLY valid JSON, no markdown or extra text.")
             ]
             
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=messages,
-                temperature=0.7,
-                max_tokens=1500
-            )
+            # Call LLM via LangChain
+            response = self.llm.invoke(messages)
             
-            result_text = response.choices[0].message.content
+            # Extract text from response
+            result_text = response.content if hasattr(response, 'content') else str(response)
+            
+            # Clean and parse JSON
             result_text = self._clean_json_response(result_text)
             return json.loads(result_text)
             
         except json.JSONDecodeError as e:
             logger.error(f"JSON parse error: {e}")
+            logger.debug(f"Raw response: {result_text[:500] if 'result_text' in locals() else 'N/A'}")
             return None
         except Exception as e:
-            logger.error(f"LLM call error: {e}")
+            logger.error(f"LLM call error ({self.provider}): {e}")
             return None
     
     def _clean_json_response(self, text: str) -> str:
-        """Clean LLM response to extract valid JSON"""
+        """
+        Clean LLM response to extract valid JSON.
+        
+        Handles:
+        - Markdown code blocks
+        - Extra text before/after JSON
+        - Various formatting issues
+        """
+        # Remove markdown code blocks
         if "```json" in text:
             text = text.split("```json")[1].split("```")[0]
         elif "```" in text:
@@ -241,6 +443,8 @@ class ContentGenerator:
                 text = parts[1]
         
         text = text.strip()
+        
+        # Find JSON object boundaries
         if '{' in text and '}' in text:
             start = text.find('{')
             end = text.rfind('}') + 1
@@ -248,8 +452,12 @@ class ContentGenerator:
         
         return text.strip()
     
+    # =========================================================================
+    # FALLBACK TEMPLATES
+    # =========================================================================
+    
     def _get_fallback_email(self, lead_info: Dict[str, Any], email_type: str) -> Dict[str, Any]:
-        """Return fallback email template"""
+        """Return fallback email template when LLM fails"""
         name = lead_info.get("name") or lead_info.get("client_name") or "there"
         company = lead_info.get("company") or lead_info.get("client_name") or ""
         
@@ -263,24 +471,27 @@ class ContentGenerator:
             "ps_line": None,
             "email_type": email_type,
             "lead_id": lead_info.get("id"),
-            "is_fallback": True
+            "is_fallback": True,
+            "provider": "fallback"
         }
     
     def _get_fallback_sms(self, lead_info: Dict[str, Any]) -> Dict[str, Any]:
-        """Return fallback SMS template"""
+        """Return fallback SMS template when LLM fails"""
         name = lead_info.get("name") or lead_info.get("client_name") or ""
+        message = f"Hi{f' {name}' if name else ''}, just following up. Do you have a few minutes to chat this week?"
         
         return {
-            "message": f"Hi{f' {name}' if name else ''}, just following up. Do you have a few minutes to chat this week?",
-            "character_count": 80,
+            "message": message,
+            "character_count": len(message),
             "has_link_placeholder": False,
             "urgency_level": "low",
             "lead_id": lead_info.get("id"),
-            "is_fallback": True
+            "is_fallback": True,
+            "provider": "fallback"
         }
     
     def _get_fallback_call_script(self, lead_info: Dict[str, Any]) -> Dict[str, Any]:
-        """Return fallback call script"""
+        """Return fallback call script when LLM fails"""
         name = lead_info.get("name") or lead_info.get("client_name") or "there"
         company = lead_info.get("company") or lead_info.get("client_name") or "your company"
         
@@ -308,11 +519,12 @@ class ContentGenerator:
             "voicemail_script": f"Hi {name}, this is [Your Name] from [Company]. I'm calling because we help {company} with [value prop]. I'd love to chat for a few minutes. Please call me back at [number] or I'll try again tomorrow.",
             "estimated_duration": "5-10 minutes",
             "lead_id": lead_info.get("id"),
-            "is_fallback": True
+            "is_fallback": True,
+            "provider": "fallback"
         }
     
     def _get_fallback_ad_copy(self, platform: str) -> Dict[str, Any]:
-        """Return fallback ad copy"""
+        """Return fallback ad copy when LLM fails"""
         return {
             "headlines": [
                 "Grow Your Business Today",
@@ -326,9 +538,13 @@ class ContentGenerator:
                 "Tired of [pain point]?",
                 "What if you could [benefit]?"
             ],
-            "hashtags": ["#business", "#growth"],
-            "emoji_suggestions": ["🚀", "✅", "💼"],
-            "a_b_variations": [],
+            "hashtags": ["#business", "#growth", "#automation"],
+            "emoji_suggestions": ["🚀", "✅", "💼", "📈"],
+            "a_b_variations": [
+                {"headline": "Transform Your Business", "primary_text": "See why thousands trust us."},
+                {"headline": "Results Guaranteed", "primary_text": "Start your free trial today."}
+            ],
             "platform": platform,
-            "is_fallback": True
+            "is_fallback": True,
+            "provider": "fallback"
         }

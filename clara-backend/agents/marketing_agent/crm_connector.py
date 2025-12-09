@@ -1,6 +1,18 @@
-### FILE: crm_connector.py ###
 """
 Marketing CRM Connector - Read leads and log marketing activities
+
+This module provides the data access layer for the Marketing Agent:
+- Fetches leads from Supabase via LeadsAPI
+- Filters leads by stage, temperature, and marketing criteria
+- Transforms lead data to marketing-friendly format
+- Calculates campaign statistics and source analytics
+
+Data Transformations:
+- Lead name resolution (contact_person > client_name > name)
+- Deal value normalization (deal_value > budget_amount)
+- Pipeline stage mapping
+- Quick temperature scoring for filtering
+
 Owner: Sheryar
 """
 
