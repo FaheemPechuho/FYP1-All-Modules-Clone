@@ -26,6 +26,7 @@ import { INDUSTRY_OPTIONS } from '../../types/leadSchema';
 import { LeadActivityTimeline } from './LeadActivityTimeline';
 import { LeadScoring } from './LeadScoring';
 import { LeadNurturing } from './LeadNurturing';
+import AISuggestions from '../marketing/AISuggestions';
 
 interface LeadDrawerProps {
   lead: Lead | null;
@@ -688,6 +689,9 @@ const EnhancedLeadOverview: React.FC<{ lead: Lead }> = ({ lead }) => {
           </div>
         </div>
       )}
+
+      {/* AI Suggestions Section */}
+      <AISuggestions lead={lead} />
 
       {/* Quick Actions Footer */}
       <div className="bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl p-6 text-white">

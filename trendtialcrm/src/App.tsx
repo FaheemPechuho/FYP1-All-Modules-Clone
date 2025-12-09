@@ -20,6 +20,7 @@ import DailyReportPage from './pages/DailyReportPage'; // Import the new Daily R
 import AttendancePage from './pages/AttendancePage'; // Added AttendancePage import
 import NotificationSettingsPage from './pages/NotificationSettingsPage'; // Import NotificationSettingsPage
 import TodosPage from './pages/TodosPage'; // Import TodosPage
+import MarketingHubPage from './pages/MarketingHubPage'; // Import MarketingHubPage
 import NotFoundPage from './pages/NotFoundPage';
 
 function App() {
@@ -105,6 +106,7 @@ function App() {
             <Route path="/attendance" element={<AttendancePage />} /> {/* Added AttendancePage route */}
             <Route path="/notifications" element={<NotificationSettingsPage />} /> {/* Added NotificationSettingsPage route */}
             <Route path="/todos" element={<TodosPage />} /> {/* Added TodosPage route */}
+            <Route path="/marketing" element={<MarketingHubPage />} /> {/* Added MarketingHubPage route */}
             
             {/* Admin specific routes nested further under ProtectedRoute with specific roles */}
             <Route path="admin" element={<ProtectedRoute allowedRoles={['super_admin']} />}>

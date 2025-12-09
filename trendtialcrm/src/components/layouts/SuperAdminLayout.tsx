@@ -5,6 +5,7 @@ import NavLink from '../common/NavLink';
 import { useAuth } from '../../contexts/AuthContext';
 import { Menu, Transition } from '@headlessui/react';
 import NotificationBell from '../notifications/NotificationBell';
+import AIAssistantButton from '../ai/AIAssistantButton';
 
 // Re-using Icons (consider a shared file for these)
 const MenuIcon = ({ className = 'w-6 h-6' }) => (
@@ -58,6 +59,7 @@ const SuperAdminLayout: React.FC = () => {
     // Add other general links like Follow-ups, Meetings if super admin needs them at top level
     { to: '/follow-ups', label: 'All Follow-Ups', icon: null },
     { to: '/meetings', label: 'All Meetings', icon: null },
+    { to: '/marketing', label: 'Marketing Hub', icon: null },
     { to: '/todos', label: 'To-Do List', icon: null },
   ];
 
@@ -212,6 +214,8 @@ const SuperAdminLayout: React.FC = () => {
 
         <main className="flex-1 py-8 px-4 sm:px-6 lg:px-8 bg-background overflow-y-auto">
           <Outlet />
+          {/* AI Assistant Button - Available everywhere */}
+          <AIAssistantButton />
         </main>
       </div>
     </div>

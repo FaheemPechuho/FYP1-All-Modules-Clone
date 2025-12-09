@@ -360,13 +360,33 @@ export const PipelineManagement: React.FC<PipelineManagementProps> = ({ onLeadCl
                 )}
               </div>
             </div>
-            <span className={`px-1.5 py-0.5 text-xs rounded font-medium flex-shrink-0 ${
-              lead.status_bucket === 'P1' ? 'bg-red-100 text-red-700' :
-              lead.status_bucket === 'P2' ? 'bg-yellow-100 text-yellow-700' :
-              'bg-green-100 text-green-700'
-            }`}>
-              {lead.status_bucket}
-            </span>
+            <div className="flex items-center space-x-1 flex-shrink-0">
+              {/* Temperature Indicator */}
+              {(() => {
+                const dealValue = lead.deal_value || 0;
+                const isHighValue = dealValue > 50000;
+                const isRecent = lead.created_at 
+                  ? new Date(lead.created_at) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+                  : false;
+                let temperature: 'hot' | 'warm' | 'cold' = 'cold';
+                if (isHighValue && isRecent) {
+                  temperature = 'hot';
+                } else if (isHighValue || isRecent) {
+                  temperature = 'warm';
+                }
+                const color = temperature === 'hot' ? 'bg-red-500' : temperature === 'warm' ? 'bg-orange-500' : 'bg-blue-500';
+                return (
+                  <div className={`w-2 h-2 rounded-full ${color}`} title={`${temperature.toUpperCase()} lead`} />
+                );
+              })()}
+              <span className={`px-1.5 py-0.5 text-xs rounded font-medium ${
+                lead.status_bucket === 'P1' ? 'bg-red-100 text-red-700' :
+                lead.status_bucket === 'P2' ? 'bg-yellow-100 text-yellow-700' :
+                'bg-green-100 text-green-700'
+              }`}>
+                {lead.status_bucket}
+              </span>
+            </div>
           </div>
           
           {/* Deal Value - Compact */}

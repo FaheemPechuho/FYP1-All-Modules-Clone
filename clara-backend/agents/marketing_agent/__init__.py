@@ -1,8 +1,11 @@
+
+### FILE: __init__.py ###
 """
-Marketing Agent Module - Feedback analysis and campaign suggestions
-Owned by: Sheryar
+Marketing Agent Module - Content generation and lead nurturing
+Owner: Sheryar
 """
 
-# Placeholder for Sheryar's implementation
-__all__ = []
+from .agent import MarketingAgent
+
+__all__ = ["MarketingAgent"]
 
