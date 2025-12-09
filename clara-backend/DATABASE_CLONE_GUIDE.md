@@ -33,7 +33,7 @@ This guide will help you create a complete clone of your TrendtialCRM Supabase d
 3. **Deploy Edge Functions**
    ```bash
    cd trendtialcrm
-   supabase functions deploy create-user --project-ref YOUR_NEW_PROJECT_REF
+   supabase functions deploy create-user --project-ref jtdrwkwsbufwhzahfesu YOUR_NEW_PROJECT_REF
    supabase functions deploy reset-user-password --project-ref YOUR_NEW_PROJECT_REF
    ```
 

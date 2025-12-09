@@ -6,7 +6,7 @@
           "-y",
           "@supabase/mcp-server-supabase@latest",
           "--access-token",
-          "sbp_b9528fbfc675b8f4fcba1c7fda43219f51147531"
+          "sbp_e2d272fa582c1024aa286a6751f8a3443cf8e6ef"
         ]
       },
         "github": {
