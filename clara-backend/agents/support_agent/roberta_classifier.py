@@ -71,11 +71,22 @@ def classify_ticket(text: str) -> str:
     Returns a category string like "technical", "billing", etc.
     If anything goes wrong, returns "general" as a safe default.
     """
+    result = classify_ticket_with_confidence(text)
+    return result["category"]
+
+
+def classify_ticket_with_confidence(text: str) -> dict:
+    """Predict the ticket category and confidence for a given text.
+
+    Returns a dict with:
+    - category: string like "technical", "billing", etc.
+    - confidence: float between 0 and 1
+    """
     try:
         load_model_if_needed()
     except Exception:
         # If model is not available for any reason, fall back gracefully
-        return "general"
+        return {"category": "general", "confidence": 0.5}
 
     assert _tokenizer is not None and _model is not None and _label_classes
 
@@ -93,9 +104,19 @@ def classify_ticket(text: str) -> str:
     with torch.no_grad():
         outputs = _model(**inputs)
         logits = outputs.logits
-        predicted_idx = int(torch.argmax(logits, dim=-1).item())
+        
+        # Apply softmax to get probabilities
+        probabilities = torch.nn.functional.softmax(logits, dim=-1)
+        
+        # Get the predicted class and its confidence
+        confidence, predicted_idx = torch.max(probabilities, dim=-1)
+        predicted_idx = int(predicted_idx.item())
+        confidence_score = float(confidence.item())
 
     if 0 <= predicted_idx < len(_label_classes):
-        return _label_classes[predicted_idx]
+        return {
+            "category": _label_classes[predicted_idx],
+            "confidence": confidence_score
+        }
 
-    return "general"
+    return {"category": "general", "confidence": 0.5}

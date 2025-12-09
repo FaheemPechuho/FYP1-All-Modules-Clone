@@ -23,6 +23,18 @@ import TodosPage from './pages/TodosPage'; // Import TodosPage
 import MarketingHubPage from './pages/MarketingHubPage'; // Import MarketingHubPage
 import NotFoundPage from './pages/NotFoundPage';
 
+// Support Agent Pages
+import { 
+  SupportDashboard, 
+  TicketsPage, 
+  TicketDetailPage, 
+  KnowledgeBasePage,
+  AgentQueuePage,
+  EmailSupportPage,
+  ChatSupportPage,
+  VoiceSupportPage,
+} from './pages/support';
+
 function App() {
   useEffect(() => {
     // Initialize notification system
@@ -107,6 +119,17 @@ function App() {
             <Route path="/notifications" element={<NotificationSettingsPage />} /> {/* Added NotificationSettingsPage route */}
             <Route path="/todos" element={<TodosPage />} /> {/* Added TodosPage route */}
             <Route path="/marketing" element={<MarketingHubPage />} /> {/* Added MarketingHubPage route */}
+            
+            {/* Support Agent Routes */}
+            <Route path="/support" element={<SupportDashboard />} />
+            <Route path="/support/tickets" element={<TicketsPage />} />
+            <Route path="/support/tickets/:id" element={<TicketDetailPage />} />
+            <Route path="/support/knowledge-base" element={<KnowledgeBasePage />} />
+            <Route path="/support/knowledge-base/:id" element={<KnowledgeBasePage />} />
+            <Route path="/support/agent-queue" element={<AgentQueuePage />} />
+            <Route path="/support/email" element={<EmailSupportPage />} />
+            <Route path="/support/chat" element={<ChatSupportPage />} />
+            <Route path="/support/voice" element={<VoiceSupportPage />} />
             
             {/* Admin specific routes nested further under ProtectedRoute with specific roles */}
             <Route path="admin" element={<ProtectedRoute allowedRoles={['super_admin']} />}>

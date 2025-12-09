@@ -63,6 +63,20 @@ const SuperAdminLayout: React.FC = () => {
     { to: '/todos', label: 'To-Do List', icon: null },
   ];
 
+  // Support Center Navigation Links
+  const supportNavLinks = [
+    { to: '/support', label: 'Dashboard', icon: null },
+    { to: '/support/tickets', label: 'All Tickets', icon: null },
+    { to: '/support/agent-queue', label: 'Agent Queue', icon: null },
+    { to: '/support/knowledge-base', label: 'Knowledge Base', icon: null },
+  ];
+
+  // Support Channels Links
+  const supportChannelLinks = [
+    { to: '/support/email', label: 'Email Ingest', icon: null },
+    { to: '/support/chat', label: 'Create Ticket', icon: null },
+  ];
+
   return (
     <div className="flex h-screen bg-background text-foreground">
       {/* Mobile Sidebar */}
@@ -172,19 +186,43 @@ const SuperAdminLayout: React.FC = () => {
                   ))}
                 </ul>
               </li>
+              <li>
+                <div className="text-xs font-semibold leading-6 text-muted-foreground uppercase tracking-wider px-3 mb-2">Support Center</div>
+                <ul role="list" className="-mx-2 space-y-1">
+                  {supportNavLinks.map(link => (
+                    <li key={link.to}>
+                      <NavLink to={link.to} className={commonNavLinkClasses} activeClassName={activeNavLinkClasses} inactiveClassName={inactiveNavLinkClasses}>
+                        {link.label}
+                      </NavLink>
+                    </li>
+                  ))}
+                </ul>
+              </li>
+              <li>
+                <div className="text-xs font-semibold leading-6 text-muted-foreground uppercase tracking-wider px-3 mb-2">Support Channels</div>
+                <ul role="list" className="-mx-2 space-y-1">
+                  {supportChannelLinks.map(link => (
+                    <li key={link.to}>
+                      <NavLink to={link.to} className={commonNavLinkClasses} activeClassName={activeNavLinkClasses} inactiveClassName={inactiveNavLinkClasses}>
+                        {link.label}
+                      </NavLink>
+                    </li>
+                  ))}
+                </ul>
+              </li>
               <li className="mt-auto">
                 {profile && (
                   <div className="mb-3 px-1 py-2 text-sm text-muted-foreground">
                     Welcome, <span className="font-medium text-foreground">{profile.full_name}</span>
                   </div>
                 )}
-          <button 
-            onClick={logout} 
+                <button
+                  onClick={logout}
                   className={`${commonNavLinkClasses} w-full bg-destructive/10 text-destructive hover:bg-destructive/20 group`}
-          >
+                >
                   <LogoutIcon className="mr-2 h-5 w-5 transition-transform group-hover:scale-105" />
-            Logout
-          </button>
+                  Logout
+                </button>
               </li>
             </ul>
           </nav>

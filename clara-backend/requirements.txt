@@ -60,7 +60,9 @@ tqdm>=4.66.0
 email-validator>=2.0.0
 phonenumbers>=8.13.0
 
-#Husnain's Requirement.txt
+# ==================== SUPPORT AGENT ML DEPENDENCIES ====================
+# Husnain's additions for Support Agent
+
 # Database - Direct PostgreSQL
 psycopg2-binary==2.9.9
 

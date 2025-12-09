@@ -10,7 +10,7 @@ from uuid import uuid4
 import os
 from dotenv import load_dotenv
 from supabase import create_client, Client
-from .roberta_classifier import classify_ticket
+from .roberta_classifier import classify_ticket, classify_ticket_with_confidence
 from .kb_search import search_kb
 import requests
 
@@ -28,6 +28,11 @@ if not supabase_url or not supabase_key:
 else:
     supabase: Client = create_client(supabase_url, supabase_key)
     print("✅ Supabase client initialized (service_role)")
+
+
+# Simple in-memory message store for demo/chat UI
+# Keyed by ticket_id -> list of message dicts
+IN_MEMORY_MESSAGES: dict[str, list[dict]] = {}
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -84,6 +89,37 @@ class TicketAnswerResponse(BaseModel):
     ticket_id: str
     answer: str
     sources: List[dict]
+
+
+class TicketMessageCreate(BaseModel):
+    """Create a new message for a ticket.
+
+    Frontend currently sends ticket_id in the path and this payload as body.
+    We allow optional sender metadata so the UI can show real agent names.
+    """
+
+    content: str
+    content_type: str | None = "text"
+    sender_type: str | None = "agent"  # customer | agent | system | ai_bot
+    sender_id: str | None = None
+    sender_name: str | None = None
+
+
+class TicketMessageResponse(BaseModel):
+    id: str
+    ticket_id: str
+    sender_type: str
+    sender_id: str | None = None
+    sender_name: str
+    sender_avatar: str | None = None
+    content: str
+    content_type: str
+    is_ai_generated: bool
+    ai_suggested: bool
+    is_read: bool
+    read_at: str | None = None
+    created_at: str
+    updated_at: str
 
 
 class EmailIngestRequest(BaseModel):
@@ -246,15 +282,17 @@ async def create_ticket(ticket: TicketCreate):
         #    (subject + description gives better context)
         classification_text = f"{ticket.subject}. {ticket.description}"
 
-        # 3. Use RoBERTa model to predict CATEGORY
-        predicted_category = classify_ticket(classification_text)
+        # 3. Use RoBERTa model to predict CATEGORY + CONFIDENCE
+        classification_result = classify_ticket_with_confidence(classification_text)
+        predicted_category = classification_result["category"]
+        ai_confidence = classification_result["confidence"]
 
         # 4. Decide PRIORITY
         #    - If user passed a priority, we keep it
         #    - Otherwise we map from predicted category using simple rules
         final_priority = ticket.priority or derive_priority_from_category(predicted_category)
 
-        # 5. Create ticket (now including category + priority)
+        # 5. Create ticket (now including category + priority + confidence)
         ticket_data = {
             "customer_id": customer["id"],
             "subject": ticket.subject,
@@ -263,6 +301,7 @@ async def create_ticket(ticket: TicketCreate):
             "category": predicted_category,
             "priority": final_priority,
             "status": "open",
+            "confidence": ai_confidence,
             "created_at": datetime.utcnow().isoformat(),
             "updated_at": datetime.utcnow().isoformat()
         }
@@ -301,6 +340,7 @@ async def create_ticket(ticket: TicketCreate):
             needs_human_review=new_ticket.get("needs_human_review"),
             created_at=new_ticket["created_at"],
             updated_at=new_ticket["updated_at"],
+            confidence=new_ticket.get("confidence"),
         )
         
     except Exception as e:
@@ -341,8 +381,10 @@ async def ingest_email(email: EmailIngestRequest):
         # 2. Build classification text from email content
         classification_text = f"{email.subject}. {email.body}"
         
-        # 3. Use RoBERTa to predict category
-        predicted_category = classify_ticket(classification_text)
+        # 3. Use RoBERTa to predict category + CONFIDENCE
+        classification_result = classify_ticket_with_confidence(classification_text)
+        predicted_category = classification_result["category"]
+        ai_confidence = classification_result["confidence"]
         
         # 4. Derive priority from category
         final_priority = derive_priority_from_category(predicted_category)
@@ -356,6 +398,7 @@ async def ingest_email(email: EmailIngestRequest):
             "category": predicted_category,
             "priority": final_priority,
             "status": "open",
+            "confidence": ai_confidence,
             "created_at": datetime.utcnow().isoformat(),
             "updated_at": datetime.utcnow().isoformat()
         }
@@ -399,6 +442,7 @@ async def ingest_email(email: EmailIngestRequest):
             needs_human_review=new_ticket.get("needs_human_review"),
             created_at=new_ticket["created_at"],
             updated_at=new_ticket["updated_at"],
+            confidence=new_ticket.get("confidence"),
         )
         
     except Exception as e:
@@ -835,3 +879,72 @@ async def answer_ticket(ticket_id: str, body: TicketAnswerRequest | None = None)
         answer=answer_text,
         sources=sources,
     )
+
+
+@router.get("/{ticket_id}/messages", response_model=List[TicketMessageResponse])
+async def get_ticket_messages(ticket_id: str):
+    """Return all messages for a given ticket.
+
+    **Simplified demo implementation**
+    - Uses an in-memory dictionary instead of a database table.
+    - Good enough to demonstrate a working chat UI.
+    """
+
+    raw_messages = IN_MEMORY_MESSAGES.get(str(ticket_id), [])
+    results: List[TicketMessageResponse] = []
+    for m in raw_messages:
+        results.append(
+            TicketMessageResponse(
+                id=str(m["id"]),
+                ticket_id=str(m["ticket_id"]),
+                sender_type=m.get("sender_type") or "customer",
+                sender_id=m.get("sender_id"),
+                sender_name=m.get("sender_name") or "User",
+                sender_avatar=m.get("sender_avatar"),
+                content=m.get("content") or "",
+                content_type=m.get("content_type") or "text",
+                is_ai_generated=bool(m.get("is_ai_generated") or False),
+                ai_suggested=bool(m.get("ai_suggested") or False),
+                is_read=bool(m.get("is_read") or True),
+                read_at=m.get("read_at"),
+                created_at=m.get("created_at") or datetime.utcnow().isoformat(),
+                updated_at=m.get("updated_at") or datetime.utcnow().isoformat(),
+            )
+        )
+
+    return results
+
+
+@router.post("/{ticket_id}/messages", response_model=TicketMessageResponse, status_code=201)
+async def create_ticket_message(ticket_id: str, body: TicketMessageCreate):
+    """Create a new message on a ticket.
+
+    **Simplified demo implementation**
+    - Does not write to the database.
+    - Stores messages in memory so the chat UI works for now.
+    """
+
+    now = datetime.utcnow().isoformat()
+    ticket_id_str = str(ticket_id)
+
+    message_dict = {
+        "id": str(uuid4()),
+        "ticket_id": ticket_id_str,
+        "sender_type": body.sender_type or "agent",
+        "sender_id": body.sender_id,
+        "sender_name": body.sender_name or "Agent",
+        "sender_avatar": None,
+        "content": body.content,
+        "content_type": body.content_type or "text",
+        "is_ai_generated": False,
+        "ai_suggested": False,
+        "is_read": True,
+        "read_at": None,
+        "created_at": now,
+        "updated_at": now,
+    }
+
+    # Append to in-memory store
+    IN_MEMORY_MESSAGES.setdefault(ticket_id_str, []).append(message_dict)
+
+    return TicketMessageResponse(**message_dict)
