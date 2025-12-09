@@ -1,0 +1,863 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Support Agent – Test UI</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    /* ===== BASE STYLES ===== */
+    * {
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      margin: 0;
+      padding: 1.5rem;
+      background: #0f172a;
+      color: #e5e7eb;
+      line-height: 1.6;
+    }
+    
+    h1 {
+      margin: 0 0 0.5rem 0;
+      font-size: 1.75rem;
+      color: #f1f5f9;
+    }
+    
+    h2 {
+      margin: 0 0 1rem 0;
+      font-size: 1.25rem;
+      color: #cbd5e1;
+    }
+    
+    /* ===== LAYOUT ===== */
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    
+    .card {
+      background: #1e293b;
+      border-radius: 0.75rem;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+      border: 1px solid #334155;
+    }
+    
+    .row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+    
+    .col {
+      flex: 1 1 300px;
+    }
+    
+    /* ===== FORM ELEMENTS ===== */
+    label {
+      display: block;
+      margin-bottom: 0.75rem;
+      font-size: 0.9rem;
+      color: #94a3b8;
+      font-weight: 500;
+    }
+    
+    input,
+    textarea,
+    select {
+      width: 100%;
+      padding: 0.6rem 0.8rem;
+      margin-top: 0.25rem;
+      border-radius: 0.5rem;
+      border: 1px solid #475569;
+      background: #0f172a;
+      color: #e5e7eb;
+      font-size: 0.9rem;
+      font-family: inherit;
+    }
+    
+    input:focus,
+    textarea:focus,
+    select:focus {
+      outline: none;
+      border-color: #3b82f6;
+    }
+    
+    textarea {
+      min-height: 100px;
+      resize: vertical;
+    }
+    
+    button {
+      margin-top: 1rem;
+      padding: 0.6rem 1.25rem;
+      border-radius: 0.5rem;
+      border: none;
+      background: #3b82f6;
+      color: white;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    
+    button:hover {
+      background: #2563eb;
+    }
+    
+    button:active {
+      transform: translateY(1px);
+    }
+    
+    button:disabled {
+      background: #475569;
+      cursor: not-allowed;
+      transform: none;
+    }
+    
+    /* ===== RESULT DISPLAYS ===== */
+    pre {
+      background: #0f172a;
+      border-radius: 0.5rem;
+      padding: 1rem;
+      overflow: auto;
+      font-size: 0.8rem;
+      border: 1px solid #334155;
+      margin: 0;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+    
+    .status-msg {
+      display: block;
+      margin-top: 0.5rem;
+      font-size: 0.85rem;
+      color: #94a3b8;
+      font-style: italic;
+    }
+    
+    .section-label {
+      font-size: 0.85rem;
+      color: #64748b;
+      margin-bottom: 0.5rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    
+    /* ===== UTILITY ===== */
+    .info-text {
+      font-size: 0.9rem;
+      color: #94a3b8;
+      margin-bottom: 1.5rem;
+    }
+    
+    code {
+      background: #334155;
+      padding: 0.2rem 0.4rem;
+      border-radius: 0.25rem;
+      font-size: 0.85rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- ===== HEADER ===== -->
+    <h1>🎫 Support Agent Test UI</h1>
+    <p class="info-text">
+      <strong>Phase 3:</strong> Email ingestion → ticket creation → AI answer → lookup.<br>
+      API: <code>http://localhost:8001/api/tickets</code>
+    </p>
+
+    <!-- ===== SECTION 0: EMAIL INGESTION (Phase 3) ===== -->
+    <div class="card">
+      <h2>📧 Email Ingestion (Phase 3)</h2>
+      <div class="row">
+        <!-- Input form -->
+        <div class="col">
+          <label>
+            From Email
+            <input id="emailFrom" type="email" value="support@customer.com" placeholder="sender@example.com" />
+          </label>
+          
+          <label>
+            Email Subject
+            <input id="emailSubject" type="text" value="Billing issue - double charge" placeholder="Email subject line" />
+          </label>
+          
+          <label>
+            Email Body
+            <textarea id="emailBody" placeholder="Full email content...">Hello support team,
+
+I noticed I was charged twice this month for my subscription. The charges are $29.99 each on March 1st and March 3rd. I should only be charged once per month.
+
+Can you please investigate and refund the duplicate charge?
+
+Thank you!</textarea>
+          </label>
+          
+          <button id="ingestBtn">Ingest Email → Create Ticket</button>
+          <span id="ingestStatus" class="status-msg"></span>
+        </div>
+        
+        <!-- Result display -->
+        <div class="col">
+          <div class="section-label">Ticket Created from Email</div>
+          <pre id="ingestResult">(Simulates receiving an email and auto-creating a ticket)</pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== SECTION 1: CREATE TICKET ===== -->
+    <div class="card">
+      <h2>1️⃣ Create Ticket</h2>
+      <div class="row">
+        <!-- Input form -->
+        <div class="col">
+          <label>
+            Customer Email
+            <input id="createEmail" type="email" value="customer@example.com" placeholder="customer@example.com" />
+          </label>
+          
+          <label>
+            Subject
+            <input id="createSubject" type="text" value="I was charged twice" placeholder="Brief issue summary" />
+          </label>
+          
+          <label>
+            Description
+            <textarea id="createDescription" placeholder="Detailed description...">I see two charges on my credit card for the same subscription this month.</textarea>
+          </label>
+          
+          <label>
+            Channel
+            <select id="createChannel">
+              <option value="email">Email</option>
+              <option value="chat">Chat</option>
+              <option value="phone">Phone</option>
+            </select>
+          </label>
+          
+          <button id="createBtn">Create Ticket</button>
+          <span id="createStatus" class="status-msg"></span>
+        </div>
+        
+        <!-- Result display -->
+        <div class="col">
+          <div class="section-label">Response</div>
+          <pre id="createResult">(Click "Create Ticket" to start)</pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== SECTION 2: GET AI ANSWER ===== -->
+    <div class="card">
+      <h2>2️⃣ Get AI Answer</h2>
+      <div class="row">
+        <!-- Input form -->
+        <div class="col">
+          <label>
+            Ticket ID
+            <input id="answerTicketId" type="text" placeholder="Paste ticket ID from step 1" />
+          </label>
+          
+          <button id="answerBtn">Generate AI Answer</button>
+          <span id="answerStatus" class="status-msg"></span>
+        </div>
+        
+        <!-- Result display -->
+        <div class="col">
+          <div class="section-label">AI Response</div>
+          <pre id="answerResult">(Enter ticket ID and click "Generate AI Answer")</pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== SECTION 3: LOOKUP TICKET ===== -->
+    <div class="card">
+      <h2>3️⃣ Lookup Ticket</h2>
+      <div class="row">
+        <!-- Input form -->
+        <div class="col">
+          <label>
+            Ticket ID
+            <input id="lookupTicketId" type="text" placeholder="Paste ticket ID" />
+          </label>
+          
+          <button id="lookupBtn">Lookup Ticket</button>
+          <span id="lookupStatus" class="status-msg"></span>
+        </div>
+        
+        <!-- Result display -->
+        <div class="col">
+          <div class="section-label">Ticket Details</div>
+          <pre id="lookupResult">(Enter ticket ID and click "Lookup Ticket")</pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== SECTION 4: ESCALATED TICKETS (AGENT QUEUE) ===== -->
+    <div class="card">
+      <h2>4️⃣ Escalated Tickets (Need Human Review)</h2>
+      <div class="row">
+        <div class="col">
+          <p class="info-text">
+            This shows tickets where <code>needs_human_review = true</code>.
+            These tickets have an AI answer but still require a human agent.
+          </p>
+          <button id="escalatedBtn">Load Escalated Tickets</button>
+          <span id="escalatedStatus" class="status-msg"></span>
+
+          <hr style="margin: 1rem 0; border-color: #334155;">
+
+          <div class="section-label">Agent Action on Escalated Ticket</div>
+          <p class="info-text">
+            Use this form to resolve or close a ticket and clear the
+            <code>needs_human_review</code> flag after a human has handled it.
+          </p>
+
+          <label>
+            Ticket ID (from escalated list or lookup)
+            <input id="agentTicketId" type="text" placeholder="Paste escalated ticket ID" />
+          </label>
+
+          <label>
+            New Status
+            <select id="agentNewStatus">
+              <option value="">(no change)</option>
+              <option value="resolved">resolved</option>
+              <option value="closed">closed</option>
+            </select>
+          </label>
+
+          <label>
+            Manual Resolution Note (optional)
+            <textarea id="agentResolution" placeholder="Summary of what the human agent did..."></textarea>
+          </label>
+
+          <label>
+            <input id="agentClearNHR" type="checkbox" checked />
+            Mark <code>needs_human_review = false</code> (ticket no longer needs escalation)
+          </label>
+
+          <button id="agentUpdateBtn">Apply Agent Update</button>
+          <span id="agentStatus" class="status-msg"></span>
+        </div>
+        <div class="col">
+          <div class="section-label">Escalated Tickets JSON</div>
+          <pre id="escalatedResult">(Click "Load Escalated Tickets" to view current queue)</pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== SECTION 5: ADMIN / METRICS ===== -->
+    <div class="card">
+      <h2>5️⃣ Admin / Metrics</h2>
+      <div class="row">
+        <div class="col">
+          <p class="info-text">
+            High-level ticket statistics, fetched live from the database via
+            <code>GET /api/tickets/stats</code>.
+          </p>
+          <button id="statsBtn">Load Stats</button>
+          <span id="statsStatus" class="status-msg"></span>
+        </div>
+        <div class="col">
+          <div class="section-label">Overview</div>
+          <pre id="statsResult">(Click "Load Stats" to see ticket counts and AI performance)</pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ===== CONFIGURATION =====
+    const API_BASE = 'http://localhost:8001/api/tickets';
+
+    // ===== UTILITY FUNCTIONS =====
+    
+    /**
+     * Format ticket data into a readable summary
+     */
+    function formatTicketSummary(ticket) {
+      if (!ticket) return 'No ticket data';
+      
+      const parts = [
+        `ID: ${ticket.id}`,
+        `Email: ${ticket.customer_email || 'N/A'}`,
+        `Subject: ${ticket.subject}`,
+        `Category: ${ticket.category || 'N/A'}`,
+        `Priority: ${ticket.priority}`,
+        `Status: ${ticket.status}`,
+        `Created: ${ticket.created_at}`,
+      ];
+      
+      // Add resolution if available
+      if (ticket.resolution) {
+        parts.push(`\n--- AI RESOLUTION ---\n${ticket.resolution}`);
+      }
+      
+      // Add confidence if available
+      if (typeof ticket.confidence === 'number') {
+        parts.push(`\nConfidence: ${ticket.confidence.toFixed(3)}`);
+      }
+      
+      return parts.join('\n');
+    }
+
+    /**
+     * Format answer response into readable text
+     */
+    function formatAnswerResponse(data) {
+      if (!data) return 'No answer data';
+      
+      const parts = [
+        `Ticket ID: ${data.ticket_id}`,
+        `\n--- AI ANSWER ---`,
+        data.answer,
+      ];
+      
+      // Add sources if available
+      if (data.sources && data.sources.length > 0) {
+        parts.push('\n--- SOURCES ---');
+        data.sources.forEach((src, idx) => {
+          parts.push(
+            `\nSource ${idx + 1}: ${src.article_title || 'Unknown'}`,
+            `Category: ${src.article_category || 'N/A'}`,
+            `Score: ${typeof src.score === 'number' ? src.score.toFixed(3) : 'N/A'}`,
+            `Content: ${src.content ? src.content.substring(0, 100) + '...' : 'N/A'}`
+          );
+        });
+      }
+      
+      return parts.join('\n');
+    }
+
+    // ===== SECTION 0: EMAIL INGESTION (PHASE 3) =====
+    
+    /**
+     * Handle email ingestion - converts email to ticket
+     */
+    async function ingestEmail() {
+      // Get form values
+      const fromEmail = document.getElementById('emailFrom').value.trim();
+      const subject = document.getElementById('emailSubject').value.trim();
+      const body = document.getElementById('emailBody').value.trim();
+      
+      const statusEl = document.getElementById('ingestStatus');
+      const resultEl = document.getElementById('ingestResult');
+      
+      // Validate inputs
+      if (!fromEmail || !subject || !body) {
+        statusEl.textContent = 'Please fill in all fields';
+        return;
+      }
+      
+      // Show loading state
+      statusEl.textContent = 'Ingesting email...';
+      resultEl.textContent = 'Processing...';
+      
+      try {
+        // Make API request to email_ingest endpoint
+        const response = await fetch(`${API_BASE}/email_ingest`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            from_email: fromEmail,
+            subject: subject,
+            body: body
+          })
+        });
+        
+        const text = await response.text();
+        let data = null;
+        
+        try {
+          data = JSON.parse(text);
+        } catch {
+          // Response is not JSON
+        }
+        
+        if (!response.ok) {
+          statusEl.textContent = `Error: ${response.status}`;
+          resultEl.textContent = text || '(no response body)';
+          return;
+        }
+        
+        // Success - show result
+        statusEl.textContent = `✅ Email ingested! Ticket created with ID: ${data.id}`;
+        resultEl.textContent = JSON.stringify(data, null, 2) + '\n\n--- SUMMARY ---\n' + formatTicketSummary(data);
+        
+        // Auto-fill the ticket ID in sections 2 and 3
+        document.getElementById('answerTicketId').value = data.id;
+        document.getElementById('lookupTicketId').value = data.id;
+        
+      } catch (error) {
+        statusEl.textContent = 'Network error';
+        resultEl.textContent = String(error);
+      }
+    }
+
+    /**
+     * Agent update on a single escalated ticket (status / resolution / needs_human_review)
+     */
+    async function updateEscalatedTicket() {
+      const ticketId = document.getElementById('agentTicketId').value.trim();
+      const newStatus = document.getElementById('agentNewStatus').value;
+      const resolution = document.getElementById('agentResolution').value.trim();
+      const clearNHR = document.getElementById('agentClearNHR').checked;
+
+      const statusEl = document.getElementById('agentStatus');
+
+      if (!ticketId) {
+        statusEl.textContent = 'Please enter a ticket ID.';
+        return;
+      }
+
+      const payload = {};
+      if (newStatus) payload.status = newStatus;
+      if (resolution) payload.resolution = resolution;
+      if (clearNHR) payload.needs_human_review = false;
+
+      if (Object.keys(payload).length === 0) {
+        statusEl.textContent = 'No changes selected. Choose a status, resolution, or clear flag.';
+        return;
+      }
+
+      statusEl.textContent = 'Applying update...';
+
+      try {
+        const response = await fetch(`${API_BASE}/${encodeURIComponent(ticketId)}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+
+        const text = await response.text();
+        let data = null;
+
+        try {
+          data = JSON.parse(text);
+        } catch {
+          // Response is not JSON
+        }
+
+        if (!response.ok) {
+          statusEl.textContent = `Error: ${response.status}`;
+          return;
+        }
+
+        statusEl.textContent = '✅ Agent update applied successfully.';
+
+        // Refresh lookup and escalated list to reflect new state
+        const lookupIdInput = document.getElementById('lookupTicketId');
+        if (lookupIdInput) lookupIdInput.value = ticketId;
+        lookupTicket();
+        loadEscalatedTickets();
+
+      } catch (error) {
+        statusEl.textContent = 'Network error';
+      }
+    }
+
+    // ===== SECTION 1: CREATE TICKET =====
+    
+    /**
+     * Handle ticket creation
+     */
+    async function createTicket() {
+      // Get form values
+      const email = document.getElementById('createEmail').value.trim();
+      const subject = document.getElementById('createSubject').value.trim();
+      const description = document.getElementById('createDescription').value.trim();
+      const channel = document.getElementById('createChannel').value;
+      
+      const statusEl = document.getElementById('createStatus');
+      const resultEl = document.getElementById('createResult');
+      
+      // Validate inputs
+      if (!email || !subject || !description) {
+        statusEl.textContent = 'Please fill in all fields';
+        return;
+      }
+      
+      // Show loading state
+      statusEl.textContent = 'Creating ticket...';
+      resultEl.textContent = 'Loading...';
+      
+      try {
+        // Make API request
+        const response = await fetch(`${API_BASE}/`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            customer_email: email,
+            subject: subject,
+            description: description,
+            channel: channel
+          })
+        });
+        
+        const text = await response.text();
+        let data = null;
+        
+        try {
+          data = JSON.parse(text);
+        } catch {
+          // Response is not JSON
+        }
+        
+        if (!response.ok) {
+          statusEl.textContent = `Error: ${response.status}`;
+          resultEl.textContent = text || '(no response body)';
+          return;
+        }
+        
+        // Success - show result
+        statusEl.textContent = `✅ Ticket created successfully! ID: ${data.id}`;
+        resultEl.textContent = JSON.stringify(data, null, 2) + '\n\n--- SUMMARY ---\n' + formatTicketSummary(data);
+        
+        // Auto-fill the ticket ID in the answer section
+        document.getElementById('answerTicketId').value = data.id;
+        document.getElementById('lookupTicketId').value = data.id;
+        
+      } catch (error) {
+        statusEl.textContent = 'Network error';
+        resultEl.textContent = String(error);
+      }
+    }
+
+    // ===== SECTION 2: GET AI ANSWER =====
+    
+    /**
+     * Handle AI answer generation
+     */
+    async function getAIAnswer() {
+      // Get ticket ID
+      const ticketId = document.getElementById('answerTicketId').value.trim();
+      const statusEl = document.getElementById('answerStatus');
+      const resultEl = document.getElementById('answerResult');
+      
+      // Validate input
+      if (!ticketId) {
+        statusEl.textContent = 'Please enter a ticket ID';
+        return;
+      }
+      
+      // Show loading state
+      statusEl.textContent = 'Generating AI answer...';
+      resultEl.textContent = 'Loading...';
+      
+      try {
+        // Make API request
+        const response = await fetch(`${API_BASE}/${encodeURIComponent(ticketId)}/answer`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({})
+        });
+        
+        const text = await response.text();
+        let data = null;
+        
+        try {
+          data = JSON.parse(text);
+        } catch {
+          // Response is not JSON
+        }
+        
+        if (!response.ok) {
+          statusEl.textContent = `Error: ${response.status}`;
+          resultEl.textContent = text || '(no response body)';
+          return;
+        }
+        
+        // Success - show result
+        statusEl.textContent = '✅ AI answer generated successfully!';
+        resultEl.textContent = JSON.stringify(data, null, 2) + '\n\n--- FORMATTED ---\n' + formatAnswerResponse(data);
+        
+        // Auto-fill lookup ID
+        document.getElementById('lookupTicketId').value = ticketId;
+        
+      } catch (error) {
+        statusEl.textContent = 'Network error';
+        resultEl.textContent = String(error);
+      }
+    }
+
+    // ===== SECTION 3: LOOKUP TICKET =====
+    
+    /**
+     * Handle ticket lookup
+     */
+    async function lookupTicket() {
+      // Get ticket ID
+      const ticketId = document.getElementById('lookupTicketId').value.trim();
+      const statusEl = document.getElementById('lookupStatus');
+      const resultEl = document.getElementById('lookupResult');
+      
+      // Validate input
+      if (!ticketId) {
+        statusEl.textContent = 'Please enter a ticket ID';
+        return;
+      }
+      
+      // Show loading state
+      statusEl.textContent = 'Loading ticket...';
+      resultEl.textContent = 'Loading...';
+      
+      try {
+        // Make API request
+        const response = await fetch(`${API_BASE}/${encodeURIComponent(ticketId)}`);
+        
+        const text = await response.text();
+        let data = null;
+        
+        try {
+          data = JSON.parse(text);
+        } catch {
+          // Response is not JSON
+        }
+        
+        if (!response.ok) {
+          statusEl.textContent = `Error: ${response.status}`;
+          resultEl.textContent = text || '(no response body)';
+          return;
+        }
+        
+        // Success - show result with status + escalation info
+        const hasResolution = data.resolution && data.resolution.trim().length > 0;
+        const confidence = typeof data.confidence === 'number' ? data.confidence : null;
+        const isHighConfidence = confidence !== null && confidence >= 0.85;
+        
+        if (hasResolution && data.status === 'resolved' && isHighConfidence) {
+          // AI confidently resolved the ticket
+          statusEl.textContent = `✅ Ticket RESOLVED by AI (confidence: ${confidence.toFixed(3)})`;
+        } else if (hasResolution) {
+          // AI answer exists but either low confidence or not resolved -> needs human
+          const confText = confidence !== null ? ` (confidence: ${confidence.toFixed(3)})` : '';
+          statusEl.textContent = `⚠️ Needs human review${confText} - AI answer exists but status is "${data.status}".`;
+        } else {
+          // No AI answer yet
+          statusEl.textContent = `📭 Ticket status: ${data.status} (no AI answer yet)`;
+        }
+        
+        resultEl.textContent = JSON.stringify(data, null, 2) + '\n\n--- SUMMARY ---\n' + formatTicketSummary(data);
+        
+      } catch (error) {
+        statusEl.textContent = 'Network error';
+        resultEl.textContent = String(error);
+      }
+    }
+
+    // ===== SECTION 4: ESCALATED TICKETS =====
+    
+    /**
+     * Load tickets where needs_human_review = true
+     */
+    async function loadEscalatedTickets() {
+      const statusEl = document.getElementById('escalatedStatus');
+      const resultEl = document.getElementById('escalatedResult');
+
+      statusEl.textContent = 'Loading escalated tickets...';
+      resultEl.textContent = 'Loading...';
+
+      try {
+        const response = await fetch(`${API_BASE}/escalated`);
+        const text = await response.text();
+        let data = null;
+
+        try {
+          data = JSON.parse(text);
+        } catch {
+          // Response is not JSON
+        }
+
+        if (!response.ok) {
+          statusEl.textContent = `Error: ${response.status}`;
+          resultEl.textContent = text || '(no response body)';
+          return;
+        }
+
+        const count = Array.isArray(data) ? data.length : 0;
+        statusEl.textContent = `Found ${count} escalated ticket(s) needing human review.`;
+        resultEl.textContent = JSON.stringify(data, null, 2);
+
+      } catch (error) {
+        statusEl.textContent = 'Network error';
+        resultEl.textContent = String(error);
+      }
+    }
+
+    // ===== SECTION 5: ADMIN / METRICS =====
+    
+    /**
+     * Load aggregate ticket statistics from /api/tickets/stats
+     */
+    async function loadStats() {
+      const statusEl = document.getElementById('statsStatus');
+      const resultEl = document.getElementById('statsResult');
+
+      statusEl.textContent = 'Loading stats...';
+      resultEl.textContent = 'Loading...';
+
+      try {
+        const response = await fetch(`${API_BASE}/stats`);
+        const text = await response.text();
+        let data = null;
+
+        try {
+          data = JSON.parse(text);
+        } catch {
+          // Response is not JSON
+        }
+
+        if (!response.ok) {
+          statusEl.textContent = `Error: ${response.status}`;
+          resultEl.textContent = text || '(no response body)';
+          return;
+        }
+
+        const total = data.total_tickets || 0;
+        const openCount = data.open_tickets || 0;
+        const resolvedCount = data.resolved_tickets || 0;
+        const nhr = data.needs_human_review || 0;
+        const resolvedByAI = data.resolved_by_ai || 0;
+
+        // Helper to compute safe percentages
+        const pct = (part, whole) => {
+          if (!whole || whole <= 0) return '0.0';
+          return ((part / whole) * 100).toFixed(1);
+        };
+
+        const lines = [];
+        lines.push(`Total tickets: ${total}`);
+        lines.push(`Open tickets: ${openCount}`);
+        lines.push(`Resolved tickets: ${resolvedCount}`);
+        lines.push(`Tickets needing human review: ${nhr}`);
+        lines.push(`Tickets resolved by AI (resolved & no human review): ${resolvedByAI}`);
+        lines.push('');
+        lines.push(`% resolved by AI (of all tickets): ${pct(resolvedByAI, total)}%`);
+        lines.push(`% needing human review (of all tickets): ${pct(nhr, total)}%`);
+
+        statusEl.textContent = 'Stats loaded from database.';
+        resultEl.textContent = lines.join('\n');
+
+      } catch (error) {
+        statusEl.textContent = 'Network error';
+        resultEl.textContent = String(error);
+      }
+    }
+
+    // ===== EVENT LISTENERS =====
+    document.getElementById('ingestBtn').addEventListener('click', ingestEmail);
+    document.getElementById('createBtn').addEventListener('click', createTicket);
+    document.getElementById('answerBtn').addEventListener('click', getAIAnswer);
+    document.getElementById('lookupBtn').addEventListener('click', lookupTicket);
+    document.getElementById('escalatedBtn').addEventListener('click', loadEscalatedTickets);
+    document.getElementById('agentUpdateBtn').addEventListener('click', updateEscalatedTicket);
+    document.getElementById('statsBtn').addEventListener('click', loadStats);
+  </script>
+</body>
+</html>
