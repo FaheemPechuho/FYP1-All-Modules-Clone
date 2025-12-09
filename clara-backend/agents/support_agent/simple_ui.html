@@ -309,10 +309,64 @@ Thank you!</textarea>
           </p>
           <button id="escalatedBtn">Load Escalated Tickets</button>
           <span id="escalatedStatus" class="status-msg"></span>
+
+          <hr style="margin: 1rem 0; border-color: #334155;">
+
+          <div class="section-label">Agent Action on Escalated Ticket</div>
+          <p class="info-text">
+            Use this form to resolve or close a ticket and clear the
+            <code>needs_human_review</code> flag after a human has handled it.
+          </p>
+
+          <label>
+            Ticket ID (from escalated list or lookup)
+            <input id="agentTicketId" type="text" placeholder="Paste escalated ticket ID" />
+          </label>
+
+          <label>
+            New Status
+            <select id="agentNewStatus">
+              <option value="">(no change)</option>
+              <option value="resolved">resolved</option>
+              <option value="closed">closed</option>
+            </select>
+          </label>
+
+          <label>
+            Manual Resolution Note (optional)
+            <textarea id="agentResolution" placeholder="Summary of what the human agent did..."></textarea>
+          </label>
+
+          <label>
+            <input id="agentClearNHR" type="checkbox" checked />
+            Mark <code>needs_human_review = false</code> (ticket no longer needs escalation)
+          </label>
+
+          <button id="agentUpdateBtn">Apply Agent Update</button>
+          <span id="agentStatus" class="status-msg"></span>
         </div>
         <div class="col">
           <div class="section-label">Escalated Tickets JSON</div>
           <pre id="escalatedResult">(Click "Load Escalated Tickets" to view current queue)</pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== SECTION 5: ADMIN / METRICS ===== -->
+    <div class="card">
+      <h2>5️⃣ Admin / Metrics</h2>
+      <div class="row">
+        <div class="col">
+          <p class="info-text">
+            High-level ticket statistics, fetched live from the database via
+            <code>GET /api/tickets/stats</code>.
+          </p>
+          <button id="statsBtn">Load Stats</button>
+          <span id="statsStatus" class="status-msg"></span>
+        </div>
+        <div class="col">
+          <div class="section-label">Overview</div>
+          <pre id="statsResult">(Click "Load Stats" to see ticket counts and AI performance)</pre>
         </div>
       </div>
     </div>
@@ -443,6 +497,68 @@ Thank you!</textarea>
       } catch (error) {
         statusEl.textContent = 'Network error';
         resultEl.textContent = String(error);
+      }
+    }
+
+    /**
+     * Agent update on a single escalated ticket (status / resolution / needs_human_review)
+     */
+    async function updateEscalatedTicket() {
+      const ticketId = document.getElementById('agentTicketId').value.trim();
+      const newStatus = document.getElementById('agentNewStatus').value;
+      const resolution = document.getElementById('agentResolution').value.trim();
+      const clearNHR = document.getElementById('agentClearNHR').checked;
+
+      const statusEl = document.getElementById('agentStatus');
+
+      if (!ticketId) {
+        statusEl.textContent = 'Please enter a ticket ID.';
+        return;
+      }
+
+      const payload = {};
+      if (newStatus) payload.status = newStatus;
+      if (resolution) payload.resolution = resolution;
+      if (clearNHR) payload.needs_human_review = false;
+
+      if (Object.keys(payload).length === 0) {
+        statusEl.textContent = 'No changes selected. Choose a status, resolution, or clear flag.';
+        return;
+      }
+
+      statusEl.textContent = 'Applying update...';
+
+      try {
+        const response = await fetch(`${API_BASE}/${encodeURIComponent(ticketId)}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+
+        const text = await response.text();
+        let data = null;
+
+        try {
+          data = JSON.parse(text);
+        } catch {
+          // Response is not JSON
+        }
+
+        if (!response.ok) {
+          statusEl.textContent = `Error: ${response.status}`;
+          return;
+        }
+
+        statusEl.textContent = '✅ Agent update applied successfully.';
+
+        // Refresh lookup and escalated list to reflect new state
+        const lookupIdInput = document.getElementById('lookupTicketId');
+        if (lookupIdInput) lookupIdInput.value = ticketId;
+        lookupTicket();
+        loadEscalatedTickets();
+
+      } catch (error) {
+        statusEl.textContent = 'Network error';
       }
     }
 
@@ -674,12 +790,74 @@ Thank you!</textarea>
       }
     }
 
+    // ===== SECTION 5: ADMIN / METRICS =====
+    
+    /**
+     * Load aggregate ticket statistics from /api/tickets/stats
+     */
+    async function loadStats() {
+      const statusEl = document.getElementById('statsStatus');
+      const resultEl = document.getElementById('statsResult');
+
+      statusEl.textContent = 'Loading stats...';
+      resultEl.textContent = 'Loading...';
+
+      try {
+        const response = await fetch(`${API_BASE}/stats`);
+        const text = await response.text();
+        let data = null;
+
+        try {
+          data = JSON.parse(text);
+        } catch {
+          // Response is not JSON
+        }
+
+        if (!response.ok) {
+          statusEl.textContent = `Error: ${response.status}`;
+          resultEl.textContent = text || '(no response body)';
+          return;
+        }
+
+        const total = data.total_tickets || 0;
+        const openCount = data.open_tickets || 0;
+        const resolvedCount = data.resolved_tickets || 0;
+        const nhr = data.needs_human_review || 0;
+        const resolvedByAI = data.resolved_by_ai || 0;
+
+        // Helper to compute safe percentages
+        const pct = (part, whole) => {
+          if (!whole || whole <= 0) return '0.0';
+          return ((part / whole) * 100).toFixed(1);
+        };
+
+        const lines = [];
+        lines.push(`Total tickets: ${total}`);
+        lines.push(`Open tickets: ${openCount}`);
+        lines.push(`Resolved tickets: ${resolvedCount}`);
+        lines.push(`Tickets needing human review: ${nhr}`);
+        lines.push(`Tickets resolved by AI (resolved & no human review): ${resolvedByAI}`);
+        lines.push('');
+        lines.push(`% resolved by AI (of all tickets): ${pct(resolvedByAI, total)}%`);
+        lines.push(`% needing human review (of all tickets): ${pct(nhr, total)}%`);
+
+        statusEl.textContent = 'Stats loaded from database.';
+        resultEl.textContent = lines.join('\n');
+
+      } catch (error) {
+        statusEl.textContent = 'Network error';
+        resultEl.textContent = String(error);
+      }
+    }
+
     // ===== EVENT LISTENERS =====
     document.getElementById('ingestBtn').addEventListener('click', ingestEmail);
     document.getElementById('createBtn').addEventListener('click', createTicket);
     document.getElementById('answerBtn').addEventListener('click', getAIAnswer);
     document.getElementById('lookupBtn').addEventListener('click', lookupTicket);
     document.getElementById('escalatedBtn').addEventListener('click', loadEscalatedTickets);
+    document.getElementById('agentUpdateBtn').addEventListener('click', updateEscalatedTicket);
+    document.getElementById('statsBtn').addEventListener('click', loadStats);
   </script>
 </body>
 </html>

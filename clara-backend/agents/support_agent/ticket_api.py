@@ -48,6 +48,7 @@ class TicketUpdate(BaseModel):
     status: Optional[str] = None
     priority: Optional[str] = None
     resolution: Optional[str] = None
+    needs_human_review: Optional[bool] = None
 
 
 class TicketResponse(BaseModel):
@@ -509,6 +510,71 @@ async def list_escalated_tickets(limit: int = Query(50, le=100, description="Num
         raise HTTPException(500, f"Error listing escalated tickets: {str(e)}")
 
 
+@router.get("/stats")
+async def get_ticket_stats():
+    """Return high-level ticket statistics for admin/monitoring views.
+
+    All values are computed directly from the database so that the metrics
+    always reflect the latest state.
+    """
+
+    if not supabase:
+        raise HTTPException(500, "Database not configured")
+
+    try:
+        # Total tickets
+        total_res = supabase.table("tickets").select("id", count="exact").execute()
+        total_tickets = total_res.count or 0
+
+        # Open tickets (status = 'open')
+        open_res = (
+            supabase.table("tickets")
+            .select("id", count="exact")
+            .eq("status", "open")
+            .execute()
+        )
+        open_tickets = open_res.count or 0
+
+        # Resolved tickets (status = 'resolved')
+        resolved_res = (
+            supabase.table("tickets")
+            .select("id", count="exact")
+            .eq("status", "resolved")
+            .execute()
+        )
+        resolved_tickets = resolved_res.count or 0
+
+        # Tickets that currently need human review
+        nhr_res = (
+            supabase.table("tickets")
+            .select("id", count="exact")
+            .eq("needs_human_review", True)
+            .execute()
+        )
+        needs_human_review = nhr_res.count or 0
+
+        # Tickets resolved by AI: resolved AND does not need human review
+        resolved_ai_res = (
+            supabase.table("tickets")
+            .select("id", count="exact")
+            .eq("status", "resolved")
+            .eq("needs_human_review", False)
+            .execute()
+        )
+        resolved_by_ai = resolved_ai_res.count or 0
+
+        return {
+            "total_tickets": total_tickets,
+            "open_tickets": open_tickets,
+            "resolved_tickets": resolved_tickets,
+            "needs_human_review": needs_human_review,
+            "resolved_by_ai": resolved_by_ai,
+        }
+
+    except Exception as e:
+        raise HTTPException(500, f"Error computing ticket stats: {str(e)}")
+
+
 @router.get("/{ticket_id}", response_model=TicketResponse)
 async def get_ticket(ticket_id: str):
     """
@@ -594,6 +660,8 @@ async def update_ticket(ticket_id: str, updates: TicketUpdate):
             update_data["priority"] = updates.priority
         if updates.resolution is not None:
             update_data["resolution"] = updates.resolution
+        if updates.needs_human_review is not None:
+            update_data["needs_human_review"] = updates.needs_human_review
         
         # Update ticket
         response = supabase.table("tickets").update(update_data).eq("id", ticket_id).execute()
