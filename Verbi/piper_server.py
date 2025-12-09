@@ -14,12 +14,22 @@ class SynthesisRequest(BaseModel):
 @app.post("/synthesize/")
 def synthesize(request: SynthesisRequest):
     output_file = "output.wav"
-    piper_executable = "./piper/piper"  #path to the piper binary 
-    model_path = "en_US-lessac-medium.onnx" #path to the .onnx file
-
+    # Windows: use .exe, Linux/Mac: no extension
+    import platform
+    if platform.system() == "Windows":
+        piper_executable = "./piper/piper.exe"
+    else:
+        piper_executable = "./piper/piper"
     
-    if not os.path.isfile(piper_executable) or not os.access(piper_executable, os.X_OK):
-        raise HTTPException(status_code=500, detail="Piper binary not found or not executable!")
+    model_path = "en_US-lessac-high.onnx" #path to the .onnx file
+
+    # Check if binary exists (Windows doesn't need X_OK check)
+    if not os.path.isfile(piper_executable):
+        raise HTTPException(
+            status_code=500, 
+            detail=f"Piper binary not found at: {piper_executable}. "
+                   f"Please download from https://github.com/rhasspy/piper/releases"
+        )
 
     
     if not os.path.exists(model_path):

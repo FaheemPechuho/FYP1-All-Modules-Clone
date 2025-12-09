@@ -137,12 +137,28 @@ class LeadsAPI:
             Updated lead data or None if failed
         """
         try:
+            # Valid columns in leads table (filter out non-existent fields)
+            valid_columns = {
+                "id", "client_id", "agent_id", "status_bucket", "lead_score", "qualification_status",
+                "campaign_id", "utm_source", "utm_medium", "utm_campaign", "referrer_url",
+                "first_touch_date", "last_touch_date", "progress_details", "next_step", "lead_source",
+                "contact_person", "email", "phone", "deal_value", "tags", "follow_up_due_date",
+                "sync_lock", "notes", "pipeline_stage_id", "expected_close_date", "win_probability",
+                "lost_reason", "industry", "created_at", "updated_at"
+            }
+            
+            # Filter to only valid columns (exclude company_name, authority, etc.)
+            filtered_updates = {
+                k: v for k, v in updates.items() 
+                if k in valid_columns
+            }
+            
             # Add updated timestamp
-            updates["updated_at"] = datetime.utcnow().isoformat()
-            updates["last_touch_date"] = datetime.utcnow().isoformat()
+            filtered_updates["updated_at"] = datetime.utcnow().isoformat()
+            filtered_updates["last_touch_date"] = datetime.utcnow().isoformat()
             
             # Update lead
-            result = self.client.table("leads").update(updates).eq("id", lead_id).execute()
+            result = self.client.table("leads").update(filtered_updates).eq("id", lead_id).execute()
             
             if result.data:
                 logger.info(f"Updated lead: {lead_id}")
@@ -233,7 +249,8 @@ class LeadsAPI:
         lead_id: str,
         activity_type: str,
         description: str,
-        created_by: str = "system",
+        subject: Optional[str] = None,
+        created_by: Optional[str] = None,
         metadata: Optional[Dict[str, Any]] = None
     ) -> Optional[Dict[str, Any]]:
         """
@@ -241,9 +258,10 @@ class LeadsAPI:
         
         Args:
             lead_id: Lead ID
-            activity_type: Type of activity (call, email, note, etc.)
+            activity_type: Type of activity (ai_interaction, call, email, note, meeting, status_change, etc.)
             description: Activity description
-            created_by: User/agent who created the activity
+            subject: Activity subject/title
+            created_by: User ID who created the activity (can be None for system activities)
             metadata: Additional metadata
             
         Returns:
@@ -253,12 +271,16 @@ class LeadsAPI:
             activity_data = {
                 "lead_id": lead_id,
                 "activity_type": activity_type,
+                "subject": subject or f"{activity_type.replace('_', ' ').title()}",
                 "description": description,
                 "activity_date": datetime.utcnow().isoformat(),
                 "created_by": created_by,
                 "metadata": metadata or {},
                 "is_automated": True,
             }
+            
+            # Remove None values
+            activity_data = {k: v for k, v in activity_data.items() if v is not None}
             
             result = self.client.table("lead_activities").insert(activity_data).execute()
             

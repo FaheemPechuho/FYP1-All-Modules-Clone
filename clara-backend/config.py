@@ -54,7 +54,7 @@ class Settings(BaseSettings):
     # ===== Voice Integration (matching Verbi configuration) =====
     VOICE_INPUT_ENABLED: bool = True
     STT_MODEL: str = "groq"  # Using Groq Whisper for transcription
-    TTS_MODEL: str = "cartesia"  # Using Cartesia for TTS (streaming)
+    TTS_MODEL: str = "piper"  # Using Cartesia for TTS (streaming)
     
     # ===== Email Integration =====
     EMAIL_INPUT_ENABLED: bool = False

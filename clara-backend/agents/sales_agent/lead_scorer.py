@@ -178,11 +178,13 @@ class LeadScorer:
         rules = self.scoring_rules["company_fit"]["criteria"]
         
         # Company size
-        company_size = lead_info.get("company_size", "").lower()
-        for size_key, points in rules["company_size"].items():
-            if size_key in company_size:
-                score += points
-                break
+        company_size = lead_info.get("company_size")
+        if company_size:
+            company_size_str = str(company_size).lower()
+            for size_key, points in rules["company_size"].items():
+                if size_key in company_size_str:
+                    score += points
+                    break
         
         # Industry match (simplified - you can enhance this)
         if lead_info.get("industry"):

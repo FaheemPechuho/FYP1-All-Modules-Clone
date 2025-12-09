@@ -160,9 +160,10 @@ def text_to_speech(model: str, api_key:str, text:str, output_file_path:str, loca
                 )
                 
                 if response.status_code == 200:
-                    with open(Config.PIPER_OUTPUT_FILE, "wb") as f:
+                    # Use the output_file_path parameter instead of hardcoded config
+                    with open(output_file_path, "wb") as f:
                         f.write(response.content)
-                    logging.info(f"Piper TTS output saved to {Config.PIPER_OUTPUT_FILE}")
+                    logging.info(f"Piper TTS output saved to {output_file_path}")
                 else:
                     logging.error(f"Piper TTS API error: {response.status_code} - {response.text}")
 
