@@ -1,6 +1,15 @@
-### FILE: prompts.py ###
 """
 Marketing Agent Prompts - LLM prompts for marketing content generation
+
+This module contains all the prompts and templates used by the Marketing Agent
+for AI-powered content generation. Includes prompts for:
+- Lead analysis and scoring
+- Email generation (multiple types and tones)
+- SMS message creation
+- Cold call scripts with objection handlers
+- Ad copy for multiple platforms (Facebook, TikTok, Google, LinkedIn)
+- Nurturing sequences
+
 Owner: Sheryar
 """
 

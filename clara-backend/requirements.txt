@@ -14,6 +14,12 @@ openai==1.30.1
 anthropic>=0.7.0
 groq>=0.4.0
 
+# LangChain & Google Gemini (for Marketing Agent)
+langchain>=0.1.0
+langchain-core>=0.1.0
+langchain-google-genai>=1.0.0
+google-generativeai>=0.4.0
+
 # Database
 supabase>=2.0.0
 
