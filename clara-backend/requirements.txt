@@ -5,26 +5,27 @@
 # Core Framework
 fastapi==0.104.1
 uvicorn==0.24.0
-pydantic==2.7.1
+pydantic>=2.12.5  # Updated for langchain compatibility
 pydantic-settings==2.1.0
 python-dotenv==1.0.0
 
 # AI/LLM
-openai==1.30.1
+openai==2.9.0
 anthropic>=0.7.0
 groq>=0.4.0
 
 # LangChain & Google Gemini (for Marketing Agent)
-langchain>=0.1.0
-langchain-core>=0.1.0
-langchain-google-genai>=1.0.0
-google-generativeai>=0.4.0
+langchain>=1.1.0
+langchain-core>=1.1.0
+langchain-google-genai>=4.0.0
+google-generativeai>=0.8.0
+langgraph>=1.0.0  # Auto-installed with langchain
 
 # Database
 supabase>=2.0.0
 
 # HTTP & Utilities
-httpx==0.27.0
+httpx>=0.28.1,<1.0.0  # Required by google-genai; <1.0.0 needed for openai compatibility
 requests==2.31.0
 python-multipart>=0.0.6
 
@@ -46,6 +47,8 @@ cartesia>=0.1.0
 melotts>=0.1.0  # Optional: Install if using MeloTTS instead of Cartesia
 
 # Optional LLM
+# Note: ollama wants httpx<0.28.0 but google-genai needs >=0.28.1
+# Both work fine with httpx>=0.28.1 (minor version difference)
 ollama>=0.1.0
 
 # Logging & Monitoring
@@ -56,4 +59,31 @@ tqdm>=4.66.0
 # Validation
 email-validator>=2.0.0
 phonenumbers>=8.13.0
+
+#Husnain's Requirement.txt
+# Database - Direct PostgreSQL
+psycopg2-binary==2.9.9
+
+# AI/ML - HuggingFace (for Support Agent)
+torch>=2.0.0
+transformers>=4.35.0
+sentence-transformers>=2.2.2
+accelerate>=0.25.0
+
+# ML Utilities
+scikit-learn>=1.3.0
+pandas>=2.0.0
+joblib>=1.3.0
+
+# Authentication & Security
+python-jose[cryptography]>=3.3.0
+passlib[bcrypt]>=1.7.4
+
+# Async Utilities
+aiofiles>=23.0.0
+python-dateutil>=2.8.0
+
+# Testing
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
 
