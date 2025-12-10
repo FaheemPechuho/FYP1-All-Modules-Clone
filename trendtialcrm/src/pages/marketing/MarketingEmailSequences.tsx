@@ -27,6 +27,7 @@ import {
   CogIcon,
   DocumentDuplicateIcon,
 } from '@heroicons/react/24/outline';
+import EmailSequenceCreationModal from '../../components/marketing/EmailSequenceCreationModal';
 
 // =============================================================================
 // TYPE DEFINITIONS
@@ -401,57 +402,15 @@ const MarketingEmailSequences: React.FC = () => {
         </div>
       )}
 
-      {/* Create Sequence Modal */}
+      {/* Create Sequence Modal - AI-Powered */}
       {showCreateModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <Card className="w-full max-w-lg">
-            <CardHeader className="border-b">
-              <CardTitle className="flex items-center gap-2">
-                <SparklesIcon className="h-5 w-5 text-amber-500" />
-                Create New Sequence
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-6 space-y-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Sequence Name</label>
-                <input
-                  type="text"
-                  placeholder="e.g., Welcome Series"
-                  className="w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Trigger</label>
-                <select className="w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary">
-                  <option>On Signup</option>
-                  <option>After Purchase</option>
-                  <option>No activity for X days</option>
-                  <option>Cart Abandoned</option>
-                  <option>Custom Tag Added</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
-                <textarea
-                  placeholder="Describe the purpose of this sequence..."
-                  rows={3}
-                  className="w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                />
-              </div>
-
-              <div className="flex gap-3 pt-4 border-t">
-                <Button variant="outline" className="flex-1" onClick={() => setShowCreateModal(false)}>
-                  Cancel
-                </Button>
-                <Button className="flex-1 bg-gradient-to-r from-amber-500 to-orange-600">
-                  Create Sequence
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+        <EmailSequenceCreationModal
+          onClose={() => setShowCreateModal(false)}
+          onSequenceCreated={(sequence) => {
+            console.log('Sequence created:', sequence);
+            setShowCreateModal(false);
+          }}
+        />
       )}
     </div>
   );

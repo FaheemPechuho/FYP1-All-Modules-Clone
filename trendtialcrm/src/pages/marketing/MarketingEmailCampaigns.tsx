@@ -30,6 +30,7 @@ import {
   CursorArrowRaysIcon,
   ArrowUpTrayIcon,
 } from '@heroicons/react/24/outline';
+import EmailCampaignCreationModal from '../../components/marketing/EmailCampaignCreationModal';
 
 // =============================================================================
 // TYPE DEFINITIONS
@@ -400,78 +401,16 @@ const MarketingEmailCampaigns: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* Create Campaign Modal */}
+      {/* Create Campaign Modal - AI-Powered */}
       {showCreateModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <CardHeader className="border-b">
-              <CardTitle className="flex items-center gap-2">
-                <SparklesIcon className="h-5 w-5 text-primary" />
-                Create New Campaign
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-6 space-y-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Campaign Name</label>
-                <input
-                  type="text"
-                  placeholder="e.g., Holiday Sale 2024"
-                  className="w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Subject Line</label>
-                <input
-                  type="text"
-                  placeholder="e.g., 🎄 Your exclusive holiday offer awaits!"
-                  className="w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Select Template</label>
-                <div className="grid grid-cols-3 gap-3">
-                  {['Newsletter', 'Promotional', 'Welcome', 'Win-back', 'Announcement', 'Report'].map((template) => (
-                    <button
-                      key={template}
-                      className="p-4 border-2 rounded-xl hover:border-primary hover:bg-primary/5 transition-all text-center"
-                    >
-                      <div className="w-10 h-10 bg-gray-100 rounded-lg mx-auto mb-2 flex items-center justify-center">
-                        <EnvelopeIcon className="h-5 w-5 text-gray-400" />
-                      </div>
-                      <p className="text-sm font-medium">{template}</p>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Recipients</label>
-                <select className="w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary">
-                  <option>All Subscribers (15,420)</option>
-                  <option>Active Users (8,750)</option>
-                  <option>New Leads (2,340)</option>
-                  <option>Cold Leads (3,200)</option>
-                </select>
-              </div>
-
-              <div className="flex gap-3 pt-4 border-t">
-                <Button 
-                  variant="outline" 
-                  className="flex-1"
-                  onClick={() => setShowCreateModal(false)}
-                >
-                  Cancel
-                </Button>
-                <Button className="flex-1 bg-gradient-to-r from-blue-500 to-indigo-600">
-                  <SparklesIcon className="h-4 w-4 mr-2" />
-                  Create with AI
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+        <EmailCampaignCreationModal
+          onClose={() => setShowCreateModal(false)}
+          onCampaignCreated={(campaign) => {
+            // In a real app, this would add to the campaigns list
+            console.log('Campaign created:', campaign);
+            setShowCreateModal(false);
+          }}
+        />
       )}
     </div>
   );

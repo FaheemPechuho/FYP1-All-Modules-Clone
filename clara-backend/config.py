@@ -37,6 +37,11 @@ class Settings(BaseSettings):
     SUPABASE_URL: str = Field(default="")
     SUPABASE_ANON_KEY: str = Field(default="")
     SUPABASE_SERVICE_KEY: str = Field(default="")
+    SUPABASE_KEY: str = Field(default="")  # Alternative key name for compatibility
+    
+    # ===== Ollama Configuration (Local LLM) =====
+    OLLAMA_API_URL: str = Field(default="http://localhost:11434/api/chat")
+    OLLAMA_MODEL_NAME: str = Field(default="llama3.1")
     
     # ===== Agent Configuration =====
     SALES_AGENT_ENABLED: bool = True

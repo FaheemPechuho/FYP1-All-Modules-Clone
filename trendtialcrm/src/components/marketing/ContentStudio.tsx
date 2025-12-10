@@ -2,7 +2,7 @@
  * ContentStudio Component
  * 
  * AI-powered content generation studio for marketing materials.
- * Connects to Clara Marketing Agent backend (LangChain + Gemini).
+ * Connects to Clara Marketing Agent backend (Ollama - Local LLM).
  * Falls back to direct Gemini API if backend is unavailable.
  * 
  * Features:
@@ -12,8 +12,8 @@
  * - Create platform-specific ad copy (Facebook, TikTok, Google, LinkedIn)
  * - Copy, send, and regenerate functionality
  * 
- * Backend: clara-backend/routes/marketing.py (LangChain + Gemini)
- * Fallback: src/services/geminiService.ts (Direct Gemini API)
+ * Backend: clara-backend/routes/marketing.py (Ollama - Local LLM)
+ * Fallback: src/services/geminiService.ts (Direct Gemini API - if backend unavailable)
  * 
  * @author Sheryar
  */
@@ -302,7 +302,7 @@ const ContentStudio: React.FC<ContentStudioProps> = ({ leads }) => {
       }
 
       setBackendAvailable(true);
-      showToast('success', 'Content generated via Clara Agent (LangChain + Gemini)');
+      showToast('success', 'Content generated via Clara Agent (Ollama - Local LLM)');
       
     } catch (backendError) {
       console.warn('Backend unavailable, falling back to direct Gemini:', backendError);
@@ -356,7 +356,7 @@ const ContentStudio: React.FC<ContentStudioProps> = ({ leads }) => {
         }
 
         setGeneratedContent(formattedContent);
-        showToast('info', 'Content generated via Direct Gemini (backend unavailable)');
+        showToast('info', 'Content generated via Direct Gemini (Ollama backend unavailable)');
         
       } catch (geminiError) {
         const errorMessage = geminiError instanceof Error ? geminiError.message : 'Failed to generate content';
@@ -437,8 +437,8 @@ const ContentStudio: React.FC<ContentStudioProps> = ({ leads }) => {
               <ServerIcon className="h-4 w-4" />
               <span>
                 {backendAvailable 
-                  ? 'Clara Agent connected (LangChain + Gemini)' 
-                  : 'Using Direct Gemini API (start backend for full features)'}
+                  ? 'Clara Agent connected (Ollama - Local LLM)' 
+                  : 'Using Direct Gemini API (Ollama backend unavailable)'}
               </span>
             </div>
           )}
@@ -570,7 +570,7 @@ const ContentStudio: React.FC<ContentStudioProps> = ({ leads }) => {
           {/* AI Badge */}
           <div className="flex items-center justify-center text-xs text-gray-500">
             <SparklesIcon className="h-3.5 w-3.5 mr-1" />
-            Powered by LangChain + Google Gemini AI
+            Powered by Ollama - Local AI
           </div>
         </CardContent>
       </Card>

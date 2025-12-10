@@ -30,6 +30,7 @@ import {
   CheckCircleIcon,
   LightBulbIcon
 } from '@heroicons/react/24/outline';
+import CampaignCreationModal from './CampaignCreationModal';
 
 // Import types from marketing API service
 // Note: Backend API calls are disabled - using local demo data
@@ -499,34 +500,15 @@ const Campaigns: React.FC = () => {
         Campaign analytics powered by Clara Marketing Intelligence
       </div>
 
-      {/* New Campaign Modal Placeholder */}
+      {/* New Campaign Modal - AI-Powered */}
       {showNewCampaignModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <Card className="w-full max-w-md mx-4">
-            <CardHeader>
-              <CardTitle>Create New Campaign</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <p className="text-gray-600 text-sm">
-                Campaign creation functionality coming soon! This will allow you to:
-              </p>
-              <ul className="text-sm text-gray-600 space-y-1 ml-4 list-disc">
-                <li>Set up tracking for different marketing channels</li>
-                <li>Configure UTM parameters automatically</li>
-                <li>Set budget and conversion goals</li>
-                <li>Get AI recommendations for targeting</li>
-              </ul>
-              <div className="flex justify-end pt-4">
-                <Button 
-                  variant="outline" 
-                  onClick={() => setShowNewCampaignModal(false)}
-                >
-                  Close
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+        <CampaignCreationModal 
+          onClose={() => setShowNewCampaignModal(false)}
+          onCampaignCreated={(campaign) => {
+            setCampaigns([...campaigns, campaign]);
+            setShowNewCampaignModal(false);
+          }}
+        />
       )}
     </div>
   );
