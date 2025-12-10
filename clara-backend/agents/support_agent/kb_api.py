@@ -33,10 +33,9 @@ class KBArticle(BaseModel):
     title: str
     content: Optional[str] = None
     category: Optional[str] = None
-    status: str = "published"
-    views_count: int = 0
+    state: str = "published"  # DB column is 'state' not 'status'
+    view_count: int = 0  # DB column is 'view_count' not 'views_count'
     helpful_count: int = 0
-    not_helpful_count: int = 0
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
 
@@ -65,7 +64,7 @@ class KBSearchResult(BaseModel):
 @router.get("/articles", response_model=List[KBArticle])
 async def list_articles(
     category: Optional[str] = Query(None, description="Filter by category"),
-    status: Optional[str] = Query("published", description="Filter by status"),
+    status: Optional[str] = Query("published", description="Filter by state"),
     limit: int = Query(50, le=100, description="Number of articles")
 ):
     """List knowledge base articles with optional filters"""
@@ -79,7 +78,7 @@ async def list_articles(
             query = query.eq("category", category)
         
         if status:
-            query = query.eq("status", status)
+            query = query.eq("state", status)  # Use 'state' column
         
         query = query.order("created_at", desc=True).limit(limit)
         
@@ -92,10 +91,9 @@ async def list_articles(
                 title=a.get("title", ""),
                 content=a.get("content"),
                 category=a.get("category"),
-                status=a.get("status", "published"),
-                views_count=a.get("views_count", 0),
+                state=a.get("state", "published"),  # Use 'state' column
+                view_count=a.get("view_count", 0),  # Use 'view_count' column
                 helpful_count=a.get("helpful_count", 0),
-                not_helpful_count=a.get("not_helpful_count", 0),
                 created_at=a.get("created_at"),
                 updated_at=a.get("updated_at"),
             ))
@@ -124,10 +122,9 @@ async def get_article(article_id: str):
             title=a.get("title", ""),
             content=a.get("content"),
             category=a.get("category"),
-            status=a.get("status", "published"),
-            views_count=a.get("views_count", 0),
+            state=a.get("state", "published"),  # Use 'state' column
+            view_count=a.get("view_count", 0),  # Use 'view_count' column
             helpful_count=a.get("helpful_count", 0),
-            not_helpful_count=a.get("not_helpful_count", 0),
             created_at=a.get("created_at"),
             updated_at=a.get("updated_at"),
         )

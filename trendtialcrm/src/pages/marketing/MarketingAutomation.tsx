@@ -30,6 +30,7 @@ import {
   ExclamationTriangleIcon,
   AdjustmentsHorizontalIcon,
 } from '@heroicons/react/24/outline';
+import WorkflowCreationModal from '../../components/marketing/WorkflowCreationModal';
 
 // =============================================================================
 // TYPE DEFINITIONS
@@ -340,66 +341,15 @@ const MarketingAutomation: React.FC = () => {
         ))}
       </div>
 
-      {/* Create Workflow Modal */}
+      {/* Create Workflow Modal - AI-Powered */}
       {showCreateModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <CardHeader className="border-b">
-              <CardTitle className="flex items-center gap-2">
-                <SparklesIcon className="h-5 w-5 text-violet-500" />
-                Create New Workflow
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-6 space-y-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Workflow Name</label>
-                <input
-                  type="text"
-                  placeholder="e.g., Lead Nurturing"
-                  className="w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
-                <textarea
-                  placeholder="Describe what this workflow does..."
-                  rows={2}
-                  className="w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-3">Select Trigger</label>
-                <div className="grid grid-cols-2 gap-3">
-                  {availableTriggers.map((trigger) => {
-                    const Icon = trigger.icon;
-                    return (
-                      <button
-                        key={trigger.id}
-                        className="flex items-center gap-3 p-4 border-2 rounded-xl hover:border-primary hover:bg-primary/5 transition-all text-left"
-                      >
-                        <div className="p-2 bg-amber-100 rounded-lg">
-                          <Icon className="h-5 w-5 text-amber-600" />
-                        </div>
-                        <span className="font-medium text-sm">{trigger.name}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <div className="flex gap-3 pt-4 border-t">
-                <Button variant="outline" className="flex-1" onClick={() => setShowCreateModal(false)}>
-                  Cancel
-                </Button>
-                <Button className="flex-1 bg-gradient-to-r from-violet-500 to-purple-600">
-                  Create & Edit Workflow
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+        <WorkflowCreationModal
+          onClose={() => setShowCreateModal(false)}
+          onWorkflowCreated={(workflow) => {
+            console.log('Workflow created:', workflow);
+            setShowCreateModal(false);
+          }}
+        />
       )}
     </div>
   );

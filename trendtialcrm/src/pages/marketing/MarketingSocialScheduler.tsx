@@ -25,6 +25,7 @@ import {
   ChatBubbleLeftIcon,
   ArrowPathRoundedSquareIcon,
 } from '@heroicons/react/24/outline';
+import SocialPostCreationModal from '../../components/marketing/SocialPostCreationModal';
 
 // Platform icons (simplified)
 const FacebookIcon = () => <span className="text-blue-600 text-lg">📘</span>;
@@ -107,8 +108,10 @@ const scheduledPosts: ScheduledPost[] = [
 
 const MarketingSocialScheduler: React.FC = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [posts, setPosts] = useState<ScheduledPost[]>(scheduledPosts);
   const [selectedPlatforms, setSelectedPlatforms] = useState<Platform[]>([]);
   const [filterStatus, setFilterStatus] = useState<PostStatus | 'all'>('all');
+  const [editingPost, setEditingPost] = useState<ScheduledPost | null>(null);
 
   const getPlatformIcon = (platform: Platform) => {
     switch (platform) {
@@ -337,89 +340,15 @@ const MarketingSocialScheduler: React.FC = () => {
         ))}
       </div>
 
-      {/* Create Post Modal */}
+      {/* Create Post Modal - AI-Powered */}
       {showCreateModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <CardHeader className="border-b">
-              <CardTitle className="flex items-center gap-2">
-                <SparklesIcon className="h-5 w-5 text-pink-500" />
-                Create Social Post
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-6 space-y-6">
-              {/* Platform Selection */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-3">Select Platforms</label>
-                <div className="flex gap-3 flex-wrap">
-                  {(['facebook', 'twitter', 'linkedin', 'instagram', 'tiktok'] as Platform[]).map((platform) => (
-                    <button
-                      key={platform}
-                      onClick={() => togglePlatform(platform)}
-                      className={`flex items-center gap-2 px-4 py-2 rounded-lg border-2 transition-all ${
-                        selectedPlatforms.includes(platform)
-                          ? 'border-primary bg-primary/5'
-                          : 'border-gray-200 hover:border-gray-300'
-                      }`}
-                    >
-                      {getPlatformIcon(platform)}
-                      <span className="text-sm font-medium capitalize">{platform}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Content */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Post Content</label>
-                <textarea
-                  rows={4}
-                  placeholder="What's on your mind?"
-                  className="w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary resize-none"
-                />
-                <p className="text-xs text-gray-400 mt-1">0/280 characters (Twitter limit)</p>
-              </div>
-
-              {/* Media Upload */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Add Media</label>
-                <div className="border-2 border-dashed border-gray-200 rounded-xl p-8 text-center hover:border-primary transition-colors cursor-pointer">
-                  <PhotoIcon className="h-10 w-10 text-gray-300 mx-auto mb-2" />
-                  <p className="text-sm text-gray-500">Drop images or videos here, or click to browse</p>
-                  <p className="text-xs text-gray-400 mt-1">PNG, JPG, GIF, MP4 up to 10MB</p>
-                </div>
-              </div>
-
-              {/* Schedule */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Schedule</label>
-                <div className="grid grid-cols-2 gap-4">
-                  <input
-                    type="date"
-                    className="px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                  />
-                  <input
-                    type="time"
-                    className="px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                  />
-                </div>
-              </div>
-
-              <div className="flex gap-3 pt-4 border-t">
-                <Button variant="outline" className="flex-1" onClick={() => setShowCreateModal(false)}>
-                  Cancel
-                </Button>
-                <Button variant="outline" className="flex-1">
-                  Save as Draft
-                </Button>
-                <Button className="flex-1 bg-gradient-to-r from-pink-500 to-rose-600">
-                  <ClockIcon className="h-4 w-4 mr-2" />
-                  Schedule Post
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+        <SocialPostCreationModal
+          onClose={() => setShowCreateModal(false)}
+          onPostCreated={(post) => {
+            setPosts([post, ...posts]);
+            setShowCreateModal(false);
+          }}
+        />
       )}
     </div>
   );

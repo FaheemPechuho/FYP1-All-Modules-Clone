@@ -24,6 +24,7 @@ import {
   EnvelopeIcon,
   CursorArrowRaysIcon,
 } from '@heroicons/react/24/outline';
+import ABTestCreationModal from '../../components/marketing/ABTestCreationModal';
 
 // =============================================================================
 // TYPE DEFINITIONS

@@ -1,9 +1,9 @@
 """
-Content Generator - LangChain + Gemini powered content generation
+Content Generator - LangChain + Ollama powered content generation
 Owner: Sheryar
 
 This module handles AI-powered content generation for marketing purposes
-using LangChain with Google Gemini as the primary LLM provider.
+using LangChain with Ollama (local LLM) as the primary LLM provider.
 
 Features:
 - Personalized email generation based on lead data
@@ -13,13 +13,15 @@ Features:
 - Batch content generation for multiple leads
 
 LangChain Integration:
-- Uses ChatGoogleGenerativeAI for Gemini models
+- Uses Ollama for local LLM inference
 - Structured output parsing with JSON
 - Template-based prompting with LangChain PromptTemplates
 """
 
 from typing import Dict, Any, Optional, List
 import json
+import os
+import requests
 from utils.logger import get_logger
 from config import get_api_key
 from .prompts import (
@@ -40,40 +42,46 @@ logger = get_logger("content_generator")
 # LANGCHAIN INITIALIZATION
 # =============================================================================
 
-def init_langchain_llm():
+def init_ollama_config():
     """
-    Initialize LangChain LLM with best available provider.
+    Initialize Ollama configuration for local LLM inference.
     
     Priority:
-    1. Google Gemini (via langchain-google-genai) - Best for creative content
-    2. Groq (via langchain) - Fast inference
-    3. OpenAI (via langchain) - Fallback
-    """
-    gemini_key = get_api_key("gemini")
-    groq_key = get_api_key("groq")
-    openai_key = get_api_key("openai")
+    1. Ollama (local) - Primary option for all content generation
+    2. Groq (cloud) - Fallback if Ollama is not available
+    3. OpenAI (cloud) - Secondary fallback
     
-    # Try Gemini first (best for marketing content)
-    if gemini_key and gemini_key.startswith("AIza"):
-        try:
-            from langchain_google_genai import ChatGoogleGenerativeAI
-            
-            llm = ChatGoogleGenerativeAI(
-                model="gemini-1.5-flash",
-                google_api_key=gemini_key,
-                temperature=0.7,
-                max_output_tokens=1500,
-                convert_system_message_to_human=True
-            )
-            logger.info("LangChain initialized with Google Gemini (gemini-1.5-flash)")
-            return llm, "gemini"
-            
-        except ImportError as e:
-            logger.warning(f"langchain-google-genai not installed: {e}")
-        except Exception as e:
-            logger.error(f"Error initializing Gemini: {e}")
+    Configuration (via environment variables):
+    - OLLAMA_API_URL: chat endpoint, default http://localhost:11434/api/chat
+    - OLLAMA_MODEL_NAME: model name, default "llama3.1"
+    """
+    # Try Ollama first (local inference)
+    ollama_url = os.getenv("OLLAMA_API_URL", "http://localhost:11434/api/chat")
+    ollama_model = os.getenv("OLLAMA_MODEL_NAME", "llama3.1")
+    
+    # Check if Ollama is available
+    try:
+        # Test connection to Ollama server
+        test_url = ollama_url.replace("/api/chat", "/api/tags")
+        response = requests.get(test_url, timeout=5)
+        response.raise_for_status()
+        
+        # If we get here, Ollama is available
+        logger.info(f"✅ Ollama initialized with model: {ollama_model}")
+        return {
+            "type": "ollama",
+            "url": ollama_url,
+            "model": ollama_model
+        }
+    except requests.exceptions.ConnectionError as e:
+        logger.warning(f"⚠️ Ollama not available (connection error): {e}. Trying fallback providers.")
+    except requests.exceptions.Timeout as e:
+        logger.warning(f"⚠️ Ollama timeout: {e}. Trying fallback providers.")
+    except Exception as e:
+        logger.warning(f"⚠️ Ollama check failed: {e}. Trying fallback providers.")
     
     # Fallback to Groq
+    groq_key = get_api_key("groq")
     if groq_key and groq_key.startswith("gsk_"):
         try:
             from langchain_groq import ChatGroq
@@ -85,7 +93,11 @@ def init_langchain_llm():
                 max_tokens=1500
             )
             logger.info("LangChain initialized with Groq (llama-3.3-70b)")
-            return llm, "groq"
+            return {
+                "type": "langchain",
+                "llm": llm,
+                "provider": "groq"
+            }
             
         except ImportError:
             # Try alternative import
@@ -96,13 +108,18 @@ def init_langchain_llm():
                     groq_api_key=groq_key,
                     temperature=0.7
                 )
-                return llm, "groq"
+                return {
+                    "type": "langchain",
+                    "llm": llm,
+                    "provider": "groq"
+                }
             except ImportError:
                 logger.warning("langchain-groq not installed")
         except Exception as e:
             logger.error(f"Error initializing Groq: {e}")
     
     # Fallback to OpenAI
+    openai_key = get_api_key("openai")
     if openai_key:
         try:
             from langchain_openai import ChatOpenAI
@@ -114,7 +131,11 @@ def init_langchain_llm():
                 max_tokens=1500
             )
             logger.info("LangChain initialized with OpenAI (gpt-4o-mini)")
-            return llm, "openai"
+            return {
+                "type": "langchain",
+                "llm": llm,
+                "provider": "openai"
+            }
             
         except ImportError:
             try:
@@ -124,14 +145,18 @@ def init_langchain_llm():
                     openai_api_key=openai_key,
                     temperature=0.7
                 )
-                return llm, "openai"
+                return {
+                    "type": "langchain",
+                    "llm": llm,
+                    "provider": "openai"
+                }
             except ImportError:
                 logger.warning("langchain-openai not installed")
         except Exception as e:
             logger.error(f"Error initializing OpenAI: {e}")
     
     logger.warning("No LLM provider configured - using fallback templates")
-    return None, "fallback"
+    return {"type": "fallback"}
 
 
 # =============================================================================
@@ -140,24 +165,29 @@ def init_langchain_llm():
 
 class ContentGenerator:
     """
-    Generate marketing content using LangChain + LLM.
-    
-    Uses LangChain for:
-    - Structured prompt templates
-    - Output parsing
-    - Chain composition
+    Generate marketing content using Ollama (local LLM) or cloud LLM fallbacks.
     
     Supported LLM providers (in priority order):
-    1. Google Gemini (primary - best for creative content)
-    2. Groq (fast inference)
-    3. OpenAI (fallback)
+    1. Ollama (local - primary for all content generation)
+    2. Groq (cloud fallback - fast inference)
+    3. OpenAI (cloud fallback)
+    4. Fallback templates (if no LLM available)
     """
     
     def __init__(self):
-        """Initialize content generator with LangChain LLM"""
-        self.llm, self.provider = init_langchain_llm()
+        """Initialize content generator with Ollama or fallback LLM"""
+        self.config = init_ollama_config()
+        self.llm = None
+        self.provider = "fallback"
         
-        if self.llm:
+        if self.config["type"] == "ollama":
+            self.provider = "ollama"
+            self.ollama_url = self.config["url"]
+            self.ollama_model = self.config["model"]
+            logger.info(f"ContentGenerator initialized with Ollama ({self.ollama_model})")
+        elif self.config["type"] == "langchain":
+            self.llm = self.config["llm"]
+            self.provider = self.config["provider"]
             logger.info(f"ContentGenerator initialized with {self.provider}")
         else:
             logger.warning("ContentGenerator using fallback templates")
@@ -385,7 +415,7 @@ class ContentGenerator:
     
     def _call_llm(self, prompt: str) -> Optional[Dict[str, Any]]:
         """
-        Make LLM API call using LangChain and parse JSON response.
+        Make LLM API call using Ollama or LangChain and parse JSON response.
         
         Args:
             prompt: The content generation prompt
@@ -394,12 +424,16 @@ class ContentGenerator:
             Parsed JSON response or None if failed
         """
         try:
+            # Use Ollama if configured
+            if self.provider == "ollama":
+                return self._call_ollama(prompt)
+            
             # Return None if no LLM configured
             if not self.llm:
                 logger.warning("No LLM configured, using fallback")
                 return None
             
-            # Build messages for the LLM
+            # Build messages for LangChain LLMs
             from langchain_core.messages import SystemMessage, HumanMessage
             
             messages = [
@@ -423,6 +457,61 @@ class ContentGenerator:
             return None
         except Exception as e:
             logger.error(f"LLM call error ({self.provider}): {e}")
+            return None
+    
+    def _call_ollama(self, prompt: str) -> Optional[Dict[str, Any]]:
+        """
+        Call Ollama API directly for content generation.
+        
+        Similar to the support agent's implementation for consistency.
+        
+        Args:
+            prompt: The content generation prompt
+            
+        Returns:
+            Parsed JSON response or None if failed
+        """
+        try:
+            # Build Ollama chat API payload
+            payload = {
+                "model": self.ollama_model,
+                "messages": [
+                    {"role": "system", "content": MARKETING_AGENT_SYSTEM_PROMPT},
+                    {"role": "user", "content": f"{prompt}\n\nRespond with ONLY valid JSON, no markdown or extra text."}
+                ],
+                "stream": False,
+                "options": {
+                    "temperature": 0.7
+                }
+            }
+            
+            # Call Ollama API
+            resp = requests.post(self.ollama_url, json=payload, timeout=120)
+            resp.raise_for_status()
+            data = resp.json()
+            
+            # Extract content from Ollama response
+            # Ollama format: {"message": {"role": "assistant", "content": "..."}, ...}
+            message = data.get("message") or {}
+            content = message.get("content")
+            
+            if not content:
+                logger.error("No content in Ollama response")
+                return None
+            
+            # Clean and parse JSON
+            content = self._clean_json_response(content)
+            return json.loads(content)
+            
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Ollama API request error: {e}")
+            return None
+        except json.JSONDecodeError as e:
+            logger.error(f"JSON parse error from Ollama: {e}")
+            logger.debug(f"Raw response: {content[:500] if 'content' in locals() else 'N/A'}")
+            return None
+        except Exception as e:
+            logger.error(f"Ollama call error: {e}")
             return None
     
     def _clean_json_response(self, text: str) -> str:
