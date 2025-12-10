@@ -386,74 +386,15 @@ const MarketingABTesting: React.FC = () => {
         ))}
       </div>
 
-      {/* Create Test Modal */}
+      {/* Create Test Modal - AI-Powered */}
       {showCreateModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <Card className="w-full max-w-lg">
-            <CardHeader className="border-b">
-              <CardTitle className="flex items-center gap-2">
-                <SparklesIcon className="h-5 w-5 text-orange-500" />
-                Create New A/B Test
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-6 space-y-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Test Name</label>
-                <input
-                  type="text"
-                  placeholder="e.g., Email Subject Line Test"
-                  className="w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-3">Test Type</label>
-                <div className="grid grid-cols-2 gap-2">
-                  {testTypes.map((type) => {
-                    const Icon = type.icon;
-                    return (
-                      <button
-                        key={type.id}
-                        className="flex items-center gap-2 p-3 border-2 rounded-lg hover:border-primary hover:bg-primary/5 transition-all"
-                      >
-                        <Icon className="h-5 w-5 text-gray-600" />
-                        <span className="text-sm font-medium">{type.name}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Variant A</label>
-                  <textarea
-                    placeholder="Enter variant A content..."
-                    rows={3}
-                    className="w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary resize-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Variant B</label>
-                  <textarea
-                    placeholder="Enter variant B content..."
-                    rows={3}
-                    className="w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary resize-none"
-                  />
-                </div>
-              </div>
-
-              <div className="flex gap-3 pt-4 border-t">
-                <Button variant="outline" className="flex-1" onClick={() => setShowCreateModal(false)}>
-                  Cancel
-                </Button>
-                <Button className="flex-1 bg-gradient-to-r from-orange-500 to-red-600">
-                  Create & Start Test
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+        <ABTestCreationModal
+          onClose={() => setShowCreateModal(false)}
+          onTestCreated={(test) => {
+            console.log('A/B Test created:', test);
+            setShowCreateModal(false);
+          }}
+        />
       )}
     </div>
   );
