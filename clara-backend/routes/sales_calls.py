@@ -246,3 +246,68 @@ async def health_check():
             "error": str(e)
         }
 
+
+# =============================================================================
+# CRM DATA ENDPOINTS - For Sales Hub Dashboard
+# =============================================================================
+
+@router.get("/history")
+async def get_call_history(limit: int = 50):
+    """
+    Get AI call history from CRM database
+    
+    Returns a list of recent AI calls with lead information for the Sales Hub
+    
+    Args:
+        limit: Maximum number of calls to return (default 50)
+        
+    Returns:
+        List of call records with lead info
+    """
+    try:
+        from crm_integration.calls_api import CallsAPI
+        
+        calls_api = CallsAPI()
+        calls = calls_api.list_ai_calls(limit=limit)
+        
+        return {
+            "success": True,
+            "calls": calls,
+            "total": len(calls)
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting call history: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/statistics")
+async def get_call_statistics():
+    """
+    Get AI call statistics for Sales Hub dashboard
+    
+    Returns aggregated statistics including:
+    - Total calls
+    - Average duration
+    - Success rate
+    - Qualification rate
+    - Calls by day
+    - Outcome breakdown
+    
+    Returns:
+        Statistics dictionary
+    """
+    try:
+        from crm_integration.calls_api import CallsAPI
+        
+        calls_api = CallsAPI()
+        stats = calls_api.get_ai_call_statistics()
+        
+        return {
+            "success": True,
+            **stats
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting call statistics: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

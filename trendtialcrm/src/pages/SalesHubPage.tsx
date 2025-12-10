@@ -35,10 +35,11 @@
  * @author Faheem
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useLeadsQuery } from '../hooks/queries/useLeadsQuery';
 import { Lead } from '../types';
 import { CallStatistics } from '../types/sales';
+import { salesCallApi, CRMCallRecord } from '../services/salesCallApi';
 import { 
   PhoneIcon, 
   ChartBarIcon, 
@@ -156,84 +157,6 @@ const MOCK_STATS: CallStatistics = {
   },
 };
 
-const MOCK_CALLS = [
-  {
-    id: '1',
-    lead_id: 'lead-1',
-    duration: 323,
-    call_type: 'outbound' as const,
-    outcome: 'qualified',
-    notes: 'Lead qualified with high budget. Decision maker confirmed. Needs CRM for 200+ team.',
-    call_start_time: new Date(Date.now() - 1800000).toISOString(),
-    created_at: new Date(Date.now() - 1800000).toISOString(),
-    lead: {
-      company_name: 'TechCorp Solutions',
-      contact_person: 'John Smith',
-      lead_score: 78,
-    },
-  },
-  {
-    id: '2',
-    lead_id: 'lead-2',
-    duration: 192,
-    call_type: 'outbound' as const,
-    outcome: 'completed',
-    notes: 'Good conversation. Need follow-up for budget discussion.',
-    call_start_time: new Date(Date.now() - 7200000).toISOString(),
-    created_at: new Date(Date.now() - 7200000).toISOString(),
-    lead: {
-      company_name: 'StartupX Inc',
-      contact_person: 'Sarah Johnson',
-      lead_score: 65,
-    },
-  },
-  {
-    id: '3',
-    lead_id: 'lead-3',
-    duration: 105,
-    call_type: 'outbound' as const,
-    outcome: 'not_interested',
-    notes: 'Currently using competitor solution. Not open to switching.',
-    call_start_time: new Date(Date.now() - 14400000).toISOString(),
-    created_at: new Date(Date.now() - 14400000).toISOString(),
-    lead: {
-      company_name: 'BigCo Industries',
-      contact_person: 'Mike Brown',
-      lead_score: 32,
-    },
-  },
-  {
-    id: '4',
-    lead_id: 'lead-4',
-    duration: 445,
-    call_type: 'outbound' as const,
-    outcome: 'qualified',
-    notes: 'Enterprise lead with $100k budget. CEO directly involved. Q1 timeline.',
-    call_start_time: new Date(Date.now() - 86400000).toISOString(),
-    created_at: new Date(Date.now() - 86400000).toISOString(),
-    lead: {
-      company_name: 'Enterprise Global',
-      contact_person: 'Lisa Chen',
-      lead_score: 92,
-    },
-  },
-  {
-    id: '5',
-    lead_id: 'lead-5',
-    duration: 178,
-    call_type: 'outbound' as const,
-    outcome: 'completed',
-    notes: 'Small business, exploring options. Good fit for basic plan.',
-    call_start_time: new Date(Date.now() - 172800000).toISOString(),
-    created_at: new Date(Date.now() - 172800000).toISOString(),
-    lead: {
-      company_name: 'Local Shop LLC',
-      contact_person: 'David Wilson',
-      lead_score: 48,
-    },
-  },
-];
-
 // =============================================================================
 // MAIN COMPONENT
 // =============================================================================
@@ -249,11 +172,67 @@ const SalesHubPage: React.FC = () => {
   const { data: leadsResponse, isLoading: isLoadingLeads } = useLeadsQuery({});
   const leads: Lead[] = leadsResponse?.leads || [];
 
-  // In production, replace with real API call
-  const [stats] = useState<CallStatistics>(MOCK_STATS);
-  const [calls] = useState(MOCK_CALLS);
-  const isLoadingStats = false;
-  const isLoadingCalls = false;
+  // Real data from CRM database
+  const [stats, setStats] = useState<CallStatistics>(MOCK_STATS);
+  const [calls, setCalls] = useState<CRMCallRecord[]>([]);
+  const [isLoadingStats, setIsLoadingStats] = useState(true);
+  const [isLoadingCalls, setIsLoadingCalls] = useState(true);
+
+  // Fetch call statistics
+  const fetchStats = useCallback(async () => {
+    setIsLoadingStats(true);
+    try {
+      const response = await salesCallApi.getCallStatistics();
+      if (response.success) {
+        setStats({
+          totalCalls: response.totalCalls || 0,
+          totalDurationSeconds: response.totalDurationSeconds || 0,
+          averageDurationSeconds: response.averageDurationSeconds || 0,
+          successRate: response.successRate || 0,
+          qualificationRate: response.qualificationRate || 0,
+          outcomes: response.outcomes || {},
+          callsByDay: response.callsByDay || [],
+          qualificationBreakdown: response.qualificationBreakdown || {
+            unqualified: 0,
+            marketing_qualified: 0,
+            sales_qualified: 0,
+            opportunity: 0,
+          },
+        });
+      }
+    } catch (error) {
+      console.error('Failed to fetch call statistics:', error);
+    } finally {
+      setIsLoadingStats(false);
+    }
+  }, []);
+
+  // Fetch call history
+  const fetchCalls = useCallback(async () => {
+    setIsLoadingCalls(true);
+    try {
+      const response = await salesCallApi.getCallHistory(50);
+      if (response.success) {
+        setCalls(response.calls);
+      }
+    } catch (error) {
+      console.error('Failed to fetch call history:', error);
+    } finally {
+      setIsLoadingCalls(false);
+    }
+  }, []);
+
+  // Fetch data on mount
+  useEffect(() => {
+    fetchStats();
+    fetchCalls();
+  }, [fetchStats, fetchCalls]);
+
+  // Refresh data handler
+  const handleRefresh = () => {
+    fetchStats();
+    fetchCalls();
+  };
 
   /**
    * Render tab navigation buttons
@@ -361,20 +340,37 @@ const SalesHubPage: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Page Header */}
         <div className="mb-8">
-          <div className="flex items-center space-x-3">
-            <div className="bg-indigo-100 rounded-lg p-2">
-              <SparklesIcon className="h-6 w-6 text-indigo-600" />
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <div className="bg-indigo-100 rounded-lg p-2">
+                <SparklesIcon className="h-6 w-6 text-indigo-600" />
+              </div>
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900">Sales Hub</h1>
+                <p className="mt-1 text-sm text-gray-600">
+                  AI-powered sales calls and lead qualification
+                  <span className="ml-2 text-xs text-gray-400">
+                    • {leads.length} leads available
+                    {isLoadingLeads && ' (refreshing...)'}
+                  </span>
+                </p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">Sales Hub</h1>
-              <p className="mt-1 text-sm text-gray-600">
-                AI-powered sales calls and lead qualification
-                <span className="ml-2 text-xs text-gray-400">
-                  • {leads.length} leads available
-                  {isLoadingLeads && ' (refreshing...)'}
-                </span>
-              </p>
-            </div>
+            <button
+              onClick={handleRefresh}
+              disabled={isLoadingStats || isLoadingCalls}
+              className="flex items-center space-x-2 px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
+            >
+              <svg 
+                className={`h-4 w-4 ${(isLoadingStats || isLoadingCalls) ? 'animate-spin' : ''}`} 
+                fill="none" 
+                viewBox="0 0 24 24" 
+                stroke="currentColor"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              <span>Refresh</span>
+            </button>
           </div>
           
           {/* Quick Stats Banner */}

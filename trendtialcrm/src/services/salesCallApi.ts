@@ -97,6 +97,45 @@ export interface HealthCheckResponse {
   error?: string;
 }
 
+// CRM Call Record (from database)
+export interface CRMCallRecord {
+  id: string;
+  lead_id: string | null;
+  duration: number;
+  call_type: string;
+  outcome: string;
+  notes: string | null;
+  call_start_time: string;
+  created_at: string;
+  transcript: string | null;
+  lead_score_after: number | null;
+  qualification_status: string | null;
+  bant_assessment: BANTAssessment | null;
+  ai_session_id: string | null;
+  lead: {
+    contact_person: string | null;
+    company_name: string | null;
+    email: string | null;
+    lead_score: number | null;
+  } | null;
+}
+
+export interface CallStatistics {
+  totalCalls: number;
+  totalDurationSeconds: number;
+  averageDurationSeconds: number;
+  successRate: number;
+  qualificationRate: number;
+  outcomes: Record<string, number>;
+  callsByDay: Array<{ date: string; count: number }>;
+  qualificationBreakdown: {
+    unqualified: number;
+    marketing_qualified: number;
+    sales_qualified: number;
+    opportunity: number;
+  };
+}
+
 // =============================================================================
 // API CLIENT
 // =============================================================================
@@ -271,6 +310,72 @@ export const salesCallApi = {
       return {
         success: false,
         message: error instanceof Error ? error.message : 'Failed to cleanup',
+      };
+    }
+  },
+
+  // =============================================================================
+  // CRM DATA ENDPOINTS - For Sales Hub Dashboard
+  // =============================================================================
+
+  /**
+   * Get call history from CRM database
+   * 
+   * @param limit - Maximum number of calls to return
+   * @returns List of call records with lead info
+   */
+  async getCallHistory(limit: number = 50): Promise<{ success: boolean; calls: CRMCallRecord[]; total: number }> {
+    try {
+      const response = await fetch(`${CLARA_BACKEND_URL}/api/sales/calls/history?limit=${limit}`);
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || `HTTP ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Failed to get call history:', error);
+      return {
+        success: false,
+        calls: [],
+        total: 0,
+      };
+    }
+  },
+
+  /**
+   * Get call statistics for Sales Hub dashboard
+   * 
+   * @returns Statistics object with aggregated data
+   */
+  async getCallStatistics(): Promise<{ success: boolean } & Partial<CallStatistics>> {
+    try {
+      const response = await fetch(`${CLARA_BACKEND_URL}/api/sales/calls/statistics`);
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || `HTTP ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Failed to get call statistics:', error);
+      return {
+        success: false,
+        totalCalls: 0,
+        totalDurationSeconds: 0,
+        averageDurationSeconds: 0,
+        successRate: 0,
+        qualificationRate: 0,
+        outcomes: {},
+        callsByDay: [],
+        qualificationBreakdown: {
+          unqualified: 0,
+          marketing_qualified: 0,
+          sales_qualified: 0,
+          opportunity: 0,
+        },
       };
     }
   },

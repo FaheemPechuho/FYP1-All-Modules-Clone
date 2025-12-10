@@ -21,16 +21,20 @@ import {
 } from '@heroicons/react/24/outline';
 import { formatDistanceToNow } from 'date-fns';
 
-// Using existing Call type from the project
+// Call type that supports both CRM records and legacy format
 interface Call {
   id: string;
-  lead_id: string;
+  lead_id: string | null;
   duration: number;
-  call_type: 'inbound' | 'outbound' | 'callback' | 'voicemail';
+  call_type: string;
   outcome: string;
   notes: string | null;
   call_start_time: string;
   created_at: string;
+  transcript?: string | null;
+  lead_score_after?: number | null;
+  qualification_status?: string | null;
+  ai_session_id?: string | null;
   user?: {
     id: string;
     full_name: string;
@@ -38,10 +42,11 @@ interface Call {
   } | null;
   // Extended for lead info
   lead?: {
-    company_name?: string;
+    company_name?: string | null;
     contact_person?: string | null;
     lead_score?: number | null;
-  };
+    email?: string | null;
+  } | null;
 }
 
 interface RecentAICallsProps {
@@ -96,10 +101,23 @@ const getOutcomeBadge = (outcome: string) => {
           Failed
         </span>
       );
+    case 'in_progress':
+      return (
+        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-700 animate-pulse">
+          In Progress
+        </span>
+      );
+    case 'follow_up_scheduled':
+      return (
+        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-700">
+          <CheckCircleIcon className="h-3 w-3 mr-1" />
+          Follow-up
+        </span>
+      );
     default:
       return (
         <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
-          {outcome}
+          {outcome?.replace(/_/g, ' ') || 'Unknown'}
         </span>
       );
   }
