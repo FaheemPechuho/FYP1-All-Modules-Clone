@@ -127,8 +127,6 @@ const SuperAdminLayout: React.FC = () => {
     { to: '/marketing', label: 'Dashboard' },
     { to: '/marketing/content-studio', label: 'Content Studio (AI)' },
     { to: '/marketing/campaigns', label: 'Campaigns' },
-    { to: '/marketing/lead-intelligence', label: 'Lead Intelligence' },
-    { to: '/marketing/roi-calculator', label: 'ROI Calculator' },
   ];
 
   // Marketing Hub - Email Marketing Submenu

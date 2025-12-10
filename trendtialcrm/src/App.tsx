@@ -27,7 +27,6 @@ import {
   MarketingDashboard,
   MarketingContentStudio,
   MarketingCampaigns,
-  MarketingLeadIntelligence,
   MarketingEmailCampaigns,
   MarketingEmailTemplates,
   MarketingEmailSequences,
@@ -36,7 +35,6 @@ import {
   MarketingSocialAnalytics,
   MarketingAutomation,
   MarketingAnalytics,
-  MarketingROICalculator,
   MarketingTemplatesLibrary,
   MarketingABTesting,
 } from './pages/marketing';
@@ -142,7 +140,6 @@ function App() {
             <Route path="/marketing/dashboard" element={<MarketingDashboard />} />
             <Route path="/marketing/content-studio" element={<MarketingContentStudio />} />
             <Route path="/marketing/campaigns" element={<MarketingCampaigns />} />
-            <Route path="/marketing/lead-intelligence" element={<MarketingLeadIntelligence />} />
             {/* Email Marketing */}
             <Route path="/marketing/email" element={<MarketingEmailCampaigns />} />
             <Route path="/marketing/email/campaigns" element={<MarketingEmailCampaigns />} />
@@ -156,7 +153,6 @@ function App() {
             {/* Automation & Analytics */}
             <Route path="/marketing/automation" element={<MarketingAutomation />} />
             <Route path="/marketing/analytics" element={<MarketingAnalytics />} />
-            <Route path="/marketing/roi-calculator" element={<MarketingROICalculator />} />
             <Route path="/marketing/templates" element={<MarketingTemplatesLibrary />} />
             <Route path="/marketing/ab-testing" element={<MarketingABTesting />} />
             
