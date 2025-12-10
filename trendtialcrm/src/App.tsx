@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import AppLayout from './components/layouts/AppLayout'; // Import AppLayout
 import ProtectedRoute from './components/common/ProtectedRoute'; // Import ProtectedRoute
@@ -20,8 +20,26 @@ import DailyReportPage from './pages/DailyReportPage'; // Import the new Daily R
 import AttendancePage from './pages/AttendancePage'; // Added AttendancePage import
 import NotificationSettingsPage from './pages/NotificationSettingsPage'; // Import NotificationSettingsPage
 import TodosPage from './pages/TodosPage'; // Import TodosPage
-import MarketingHubPage from './pages/MarketingHubPage'; // Import MarketingHubPage
 import NotFoundPage from './pages/NotFoundPage';
+
+// Marketing Hub Pages
+import {
+  MarketingDashboard,
+  MarketingContentStudio,
+  MarketingCampaigns,
+  MarketingLeadIntelligence,
+  MarketingEmailCampaigns,
+  MarketingEmailTemplates,
+  MarketingEmailSequences,
+  MarketingSocialScheduler,
+  MarketingSocialCalendar,
+  MarketingSocialAnalytics,
+  MarketingAutomation,
+  MarketingAnalytics,
+  MarketingROICalculator,
+  MarketingTemplatesLibrary,
+  MarketingABTesting,
+} from './pages/marketing';
 
 // Support Agent Pages
 import { 
@@ -118,7 +136,29 @@ function App() {
             <Route path="/attendance" element={<AttendancePage />} /> {/* Added AttendancePage route */}
             <Route path="/notifications" element={<NotificationSettingsPage />} /> {/* Added NotificationSettingsPage route */}
             <Route path="/todos" element={<TodosPage />} /> {/* Added TodosPage route */}
-            <Route path="/marketing" element={<MarketingHubPage />} /> {/* Added MarketingHubPage route */}
+            
+            {/* Marketing Hub Routes - Full Marketing Suite */}
+            <Route path="/marketing" element={<MarketingDashboard />} />
+            <Route path="/marketing/dashboard" element={<MarketingDashboard />} />
+            <Route path="/marketing/content-studio" element={<MarketingContentStudio />} />
+            <Route path="/marketing/campaigns" element={<MarketingCampaigns />} />
+            <Route path="/marketing/lead-intelligence" element={<MarketingLeadIntelligence />} />
+            {/* Email Marketing */}
+            <Route path="/marketing/email" element={<MarketingEmailCampaigns />} />
+            <Route path="/marketing/email/campaigns" element={<MarketingEmailCampaigns />} />
+            <Route path="/marketing/email/templates" element={<MarketingEmailTemplates />} />
+            <Route path="/marketing/email/sequences" element={<MarketingEmailSequences />} />
+            {/* Social Media */}
+            <Route path="/marketing/social" element={<MarketingSocialScheduler />} />
+            <Route path="/marketing/social/scheduler" element={<MarketingSocialScheduler />} />
+            <Route path="/marketing/social/calendar" element={<MarketingSocialCalendar />} />
+            <Route path="/marketing/social/analytics" element={<MarketingSocialAnalytics />} />
+            {/* Automation & Analytics */}
+            <Route path="/marketing/automation" element={<MarketingAutomation />} />
+            <Route path="/marketing/analytics" element={<MarketingAnalytics />} />
+            <Route path="/marketing/roi-calculator" element={<MarketingROICalculator />} />
+            <Route path="/marketing/templates" element={<MarketingTemplatesLibrary />} />
+            <Route path="/marketing/ab-testing" element={<MarketingABTesting />} />
             
             {/* Support Agent Routes */}
             <Route path="/support" element={<SupportDashboard />} />

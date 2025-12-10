@@ -29,8 +29,9 @@ const LogoutIcon = ({ className = 'w-5 h-5' }) => (
 const ChevronDownIcon = ({ className = 'w-4 h-4' }) => (
   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className={className}>
     <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-  </svg>
+    </svg>
 );
+
 
 // Example icons for admin links (replace with actual icons)
 const UsersIcon = ({ className = 'w-5 h-5 mr-3' }) => (
@@ -45,47 +46,103 @@ const SettingsIcon = ({ className = 'w-5 h-5 mr-3' }) => (
     </svg>
 );
 
+// Marketing Hub Icon
+const MarketingIcon = ({ className = 'w-5 h-5' }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M10.34 15.84c-.688-.06-1.386-.09-2.09-.09H7.5a4.5 4.5 0 110-9h.75c.704 0 1.402-.03 2.09-.09m0 9.18c.253.962.584 1.892.985 2.783.247.55.06 1.21-.463 1.511l-.657.38c-.551.318-1.26.117-1.527-.461a20.845 20.845 0 01-1.44-4.282m3.102.069a18.03 18.03 0 01-.59-4.59c0-1.586.205-3.124.59-4.59m0 9.18a23.848 23.848 0 018.835 2.535M10.34 6.66a23.847 23.847 0 008.835-2.535m0 0A23.74 23.74 0 0018.795 3m.38 1.125a23.91 23.91 0 011.014 5.395m-1.014 8.855c-.118.38-.245.754-.38 1.125m.38-1.125a23.91 23.91 0 001.014-5.395m0-3.46c.495.413.811 1.035.811 1.73 0 .695-.316 1.317-.811 1.73m0-3.46a24.347 24.347 0 010 3.46" />
+  </svg>
+);
+
+// Support Hub Icon
+const SupportIcon = ({ className = 'w-5 h-5' }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9 5.25h.008v.008H12v-.008z" />
+  </svg>
+);
+
 const SuperAdminLayout: React.FC = () => {
   const { logout, profile } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [supportCenterOpen, setSupportCenterOpen] = useState(false);
+  
+  // Marketing Hub States
+  const [marketingHubOpen, setMarketingHubOpen] = useState(false);
+  const [emailMarketingOpen, setEmailMarketingOpen] = useState(false);
+  const [socialMediaOpen, setSocialMediaOpen] = useState(false);
+  const [automationOpen, setAutomationOpen] = useState(false);
+  
+  // Support Hub States
+  const [supportHubOpen, setSupportHubOpen] = useState(false);
+  const [ticketsQueueOpen, setTicketsQueueOpen] = useState(false);
   const [supportChannelsOpen, setSupportChannelsOpen] = useState(false);
 
   const commonNavLinkClasses = 'flex items-center space-x-3 px-3 py-2.5 text-sm font-medium transition-all duration-200 ease-in-out';
   const activeNavLinkClasses = 'bg-primary/10 text-primary rounded-lg font-semibold';
   const inactiveNavLinkClasses = 'text-muted-foreground hover:text-primary hover:bg-primary/5 rounded-lg';
-  const submenuLinkClasses = 'flex items-center px-3 py-2 text-sm font-medium transition-all duration-200 ease-in-out pl-6';
+  const submenuLinkClasses = 'flex items-center px-3 py-2 text-sm font-medium transition-all duration-200 ease-in-out pl-8';
+  const nestedSubmenuLinkClasses = 'flex items-center px-3 py-1.5 text-sm font-medium transition-all duration-200 ease-in-out pl-12';
 
   // Super Admin Navigation Links
   const superAdminNavLinks = [
-    { to: '/dashboard', label: 'Dashboard', icon: null }, // Add generic dashboard icon if desired
-    { to: '/leads', label: 'Leads Overview', icon: null }, // Add generic leads icon
+    { to: '/dashboard', label: 'Dashboard', icon: null },
+    { to: '/leads', label: 'Leads Overview', icon: null },
     { to: '/admin/users', label: 'User Management', icon: UsersIcon },
     { to: '/admin/settings', label: 'System Settings', icon: SettingsIcon },
     { to: '/admin/team-progress', label: 'Team Progress', icon: UsersIcon },
-    { to: '/daily-report', label: 'Daily Reports', icon: null }, // Placeholder icon
-    { to: '/attendance', label: 'Attendance', icon: null }, // Added Attendance link
-    // Add other general links like Follow-ups, Meetings if super admin needs them at top level
+    { to: '/daily-report', label: 'Daily Reports', icon: null },
+    { to: '/attendance', label: 'Attendance', icon: null },
     { to: '/follow-ups', label: 'All Follow-Ups', icon: null },
     { to: '/meetings', label: 'All Meetings', icon: null },
-    { to: '/marketing', label: 'Marketing Hub', icon: null },
     { to: '/todos', label: 'To-Do List', icon: null },
   ];
 
-  // Support Center - Main link
-  const supportDashboardLink = { to: '/support', label: 'Dashboard', icon: null };
-  
-  // Support Center Submenu Links
-  const supportSubmenuLinks = [
-    { to: '/support/tickets', label: 'All Tickets', icon: null },
-    { to: '/support/agent-queue', label: 'Agent Queue', icon: null },
-    { to: '/support/knowledge-base', label: 'Knowledge Base', icon: null },
+  // Marketing Hub - Main Links (shown directly under Marketing Hub)
+  const marketingMainLinks = [
+    { to: '/marketing', label: 'Dashboard' },
+    { to: '/marketing/content-studio', label: 'Content Studio (AI)' },
+    { to: '/marketing/campaigns', label: 'Campaigns' },
+    { to: '/marketing/lead-intelligence', label: 'Lead Intelligence' },
+    { to: '/marketing/roi-calculator', label: 'ROI Calculator' },
   ];
 
-  // Support Channels Submenu Links
+  // Marketing Hub - Email Marketing Submenu
+  const emailMarketingLinks = [
+    { to: '/marketing/email/campaigns', label: 'Email Campaigns' },
+    { to: '/marketing/email/templates', label: 'Templates' },
+    { to: '/marketing/email/sequences', label: 'Sequences' },
+  ];
+
+  // Marketing Hub - Social Media Submenu
+  const socialMediaLinks = [
+    { to: '/marketing/social/scheduler', label: 'Post Scheduler' },
+    { to: '/marketing/social/calendar', label: 'Content Calendar' },
+    { to: '/marketing/social/analytics', label: 'Social Analytics' },
+  ];
+
+  // Marketing Hub - Automation & Strategy Submenu (NEW)
+  const automationLinks = [
+    { to: '/marketing/automation', label: 'Automation Workflows' },
+    { to: '/marketing/analytics', label: 'Analytics' },
+    { to: '/marketing/ab-testing', label: 'A/B Testing' },
+    { to: '/marketing/templates', label: 'Templates Library' },
+  ];
+
+  // Support Hub - Main Links (shown directly under Support Hub)
+  const supportMainLinks = [
+    { to: '/support', label: 'Dashboard' },
+    { to: '/support/knowledge-base', label: 'Knowledge Base' },
+  ];
+  
+  // Support Hub - Tickets & Queue Submenu
+  const ticketsQueueLinks = [
+    { to: '/support/tickets', label: 'All Tickets' },
+    { to: '/support/agent-queue', label: 'Agent Queue' },
+  ];
+
+  // Support Hub - Channels Submenu
   const supportChannelLinks = [
-    { to: '/support/email', label: 'Email Ingest', icon: null },
-    { to: '/support/chat', label: 'Create Ticket', icon: null },
+    { to: '/support/email', label: 'Email Ingest' },
+    { to: '/support/chat', label: 'Live Chat' },
+    { to: '/support/voice', label: 'Voice Support' },
   ];
 
   return (
@@ -139,7 +196,7 @@ const SuperAdminLayout: React.FC = () => {
                     </Link>
                   </div>
                   <nav className="flex flex-1 flex-col">
-                    <ul role="list" className="flex flex-1 flex-col gap-y-7">
+                    <ul role="list" className="flex flex-1 flex-col gap-y-5">
                       <li>
                         <ul role="list" className="-mx-2 space-y-1">
                           {superAdminNavLinks.map(link => (
@@ -152,6 +209,171 @@ const SuperAdminLayout: React.FC = () => {
                           ))}
                         </ul>
                       </li>
+                      
+                      {/* Mobile Marketing Hub - Collapsible */}
+                      <li>
+                        <button
+                          onClick={() => setMarketingHubOpen(!marketingHubOpen)}
+                          className={`flex items-center justify-between w-full px-3 py-2.5 rounded-lg transition-all duration-200 ${
+                            marketingHubOpen 
+                              ? 'bg-gradient-to-r from-indigo-500/10 to-purple-500/10 text-primary' 
+                              : 'text-muted-foreground hover:text-primary hover:bg-primary/5'
+                          }`}
+                        >
+                          <div className="flex items-center space-x-3">
+                            <div className={`p-1.5 rounded-lg ${marketingHubOpen ? 'bg-gradient-to-r from-indigo-500 to-purple-500 text-white' : 'bg-muted'}`}>
+                              <MarketingIcon className="w-4 h-4" />
+                            </div>
+                            <span className="font-semibold text-sm">Marketing Hub</span>
+                          </div>
+                          <ChevronDownIcon className={`w-4 h-4 transition-transform duration-300 ${marketingHubOpen ? 'rotate-180' : ''}`} />
+                        </button>
+                        
+                        <div className={`overflow-hidden transition-all duration-300 ease-in-out ${marketingHubOpen ? 'max-h-[600px] opacity-100' : 'max-h-0 opacity-0'}`}>
+                          <ul role="list" className="mt-2 ml-2 border-l-2 border-indigo-200 space-y-0.5">
+                            {marketingMainLinks.map(link => (
+                              <li key={link.to}>
+                                <NavLink to={link.to} className={submenuLinkClasses} activeClassName={activeNavLinkClasses} inactiveClassName={inactiveNavLinkClasses}>
+                                  {link.label}
+                                </NavLink>
+                              </li>
+                            ))}
+                            
+                            {/* Email Marketing */}
+                            <li>
+                              <button
+                                onClick={() => setEmailMarketingOpen(!emailMarketingOpen)}
+                                className={`${submenuLinkClasses} w-full justify-between ${inactiveNavLinkClasses}`}
+                              >
+                                <span>Email Marketing</span>
+                                <ChevronDownIcon className={`w-3.5 h-3.5 transition-transform duration-200 ${emailMarketingOpen ? 'rotate-180' : ''}`} />
+                              </button>
+                              <ul className={`overflow-hidden transition-all duration-200 ${emailMarketingOpen ? 'max-h-40 opacity-100' : 'max-h-0 opacity-0'}`}>
+                                {emailMarketingLinks.map(link => (
+                                  <li key={link.to}>
+                                    <NavLink to={link.to} className={nestedSubmenuLinkClasses} activeClassName={activeNavLinkClasses} inactiveClassName={inactiveNavLinkClasses}>
+                                      {link.label}
+                                    </NavLink>
+                                  </li>
+                                ))}
+                              </ul>
+                            </li>
+                            
+                            {/* Social Media */}
+                            <li>
+                              <button
+                                onClick={() => setSocialMediaOpen(!socialMediaOpen)}
+                                className={`${submenuLinkClasses} w-full justify-between ${inactiveNavLinkClasses}`}
+                              >
+                                <span>Social Media</span>
+                                <ChevronDownIcon className={`w-3.5 h-3.5 transition-transform duration-200 ${socialMediaOpen ? 'rotate-180' : ''}`} />
+                              </button>
+                              <ul className={`overflow-hidden transition-all duration-200 ${socialMediaOpen ? 'max-h-40 opacity-100' : 'max-h-0 opacity-0'}`}>
+                                {socialMediaLinks.map(link => (
+                                  <li key={link.to}>
+                                    <NavLink to={link.to} className={nestedSubmenuLinkClasses} activeClassName={activeNavLinkClasses} inactiveClassName={inactiveNavLinkClasses}>
+                                      {link.label}
+                                    </NavLink>
+                                  </li>
+                                ))}
+                              </ul>
+                            </li>
+                            
+                            {/* Automation & Strategy */}
+                            <li>
+                              <button
+                                onClick={() => setAutomationOpen(!automationOpen)}
+                                className={`${submenuLinkClasses} w-full justify-between ${inactiveNavLinkClasses}`}
+                              >
+                                <span>Automation & Strategy</span>
+                                <ChevronDownIcon className={`w-3.5 h-3.5 transition-transform duration-200 ${automationOpen ? 'rotate-180' : ''}`} />
+                              </button>
+                              <ul className={`overflow-hidden transition-all duration-200 ${automationOpen ? 'max-h-48 opacity-100' : 'max-h-0 opacity-0'}`}>
+                                {automationLinks.map(link => (
+                                  <li key={link.to}>
+                                    <NavLink to={link.to} className={nestedSubmenuLinkClasses} activeClassName={activeNavLinkClasses} inactiveClassName={inactiveNavLinkClasses}>
+                                      {link.label}
+                                    </NavLink>
+                                  </li>
+                                ))}
+                              </ul>
+                            </li>
+                          </ul>
+                        </div>
+                      </li>
+                      
+                      {/* Mobile Support Hub - Collapsible */}
+                      <li>
+                        <button
+                          onClick={() => setSupportHubOpen(!supportHubOpen)}
+                          className={`flex items-center justify-between w-full px-3 py-2.5 rounded-lg transition-all duration-200 ${
+                            supportHubOpen 
+                              ? 'bg-gradient-to-r from-emerald-500/10 to-teal-500/10 text-primary' 
+                              : 'text-muted-foreground hover:text-primary hover:bg-primary/5'
+                          }`}
+                        >
+                          <div className="flex items-center space-x-3">
+                            <div className={`p-1.5 rounded-lg ${supportHubOpen ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white' : 'bg-muted'}`}>
+                              <SupportIcon className="w-4 h-4" />
+                            </div>
+                            <span className="font-semibold text-sm">Support Hub</span>
+                          </div>
+                          <ChevronDownIcon className={`w-4 h-4 transition-transform duration-300 ${supportHubOpen ? 'rotate-180' : ''}`} />
+                        </button>
+                        
+                        <div className={`overflow-hidden transition-all duration-300 ease-in-out ${supportHubOpen ? 'max-h-[400px] opacity-100' : 'max-h-0 opacity-0'}`}>
+                          <ul role="list" className="mt-2 ml-2 border-l-2 border-emerald-200 space-y-0.5">
+                            {supportMainLinks.map(link => (
+                              <li key={link.to}>
+                                <NavLink to={link.to} className={submenuLinkClasses} activeClassName={activeNavLinkClasses} inactiveClassName={inactiveNavLinkClasses}>
+                                  {link.label}
+                                </NavLink>
+                              </li>
+                            ))}
+                            
+                            {/* Tickets & Queue */}
+                            <li>
+                              <button
+                                onClick={() => setTicketsQueueOpen(!ticketsQueueOpen)}
+                                className={`${submenuLinkClasses} w-full justify-between ${inactiveNavLinkClasses}`}
+                              >
+                                <span>Tickets & Queue</span>
+                                <ChevronDownIcon className={`w-3.5 h-3.5 transition-transform duration-200 ${ticketsQueueOpen ? 'rotate-180' : ''}`} />
+                              </button>
+                              <ul className={`overflow-hidden transition-all duration-200 ${ticketsQueueOpen ? 'max-h-40 opacity-100' : 'max-h-0 opacity-0'}`}>
+                                {ticketsQueueLinks.map(link => (
+                                  <li key={link.to}>
+                                    <NavLink to={link.to} className={nestedSubmenuLinkClasses} activeClassName={activeNavLinkClasses} inactiveClassName={inactiveNavLinkClasses}>
+                                      {link.label}
+                                    </NavLink>
+                                  </li>
+                                ))}
+                              </ul>
+                            </li>
+                            
+                            {/* Support Channels */}
+                            <li>
+                              <button
+                                onClick={() => setSupportChannelsOpen(!supportChannelsOpen)}
+                                className={`${submenuLinkClasses} w-full justify-between ${inactiveNavLinkClasses}`}
+                              >
+                                <span>Support Channels</span>
+                                <ChevronDownIcon className={`w-3.5 h-3.5 transition-transform duration-200 ${supportChannelsOpen ? 'rotate-180' : ''}`} />
+                              </button>
+                              <ul className={`overflow-hidden transition-all duration-200 ${supportChannelsOpen ? 'max-h-40 opacity-100' : 'max-h-0 opacity-0'}`}>
+                                {supportChannelLinks.map(link => (
+                                  <li key={link.to}>
+                                    <NavLink to={link.to} className={nestedSubmenuLinkClasses} activeClassName={activeNavLinkClasses} inactiveClassName={inactiveNavLinkClasses}>
+                                      {link.label}
+                                    </NavLink>
+                                  </li>
+                                ))}
+                              </ul>
+                            </li>
+                          </ul>
+                        </div>
+                      </li>
+                      
                       <li className="mt-auto">
                         {profile && (
                           <div className="mb-3 px-1 py-2 text-sm text-muted-foreground">
@@ -167,7 +389,7 @@ const SuperAdminLayout: React.FC = () => {
                         </button>
                       </li>
                     </ul>
-          </nav>
+                  </nav>
                 </aside>
               </div>
             </Transition.Child>
@@ -197,55 +419,172 @@ const SuperAdminLayout: React.FC = () => {
                   ))}
                 </ul>
               </li>
-              {/* Support Center Section */}
-              <li>
-                <div className="text-xs font-semibold leading-6 text-muted-foreground uppercase tracking-wider px-3 mb-2">Support Center</div>
-                <ul role="list" className="-mx-2 space-y-1">
-                  {/* Dashboard Link */}
-                  <li>
-                    <NavLink to={supportDashboardLink.to} className={commonNavLinkClasses} activeClassName={activeNavLinkClasses} inactiveClassName={inactiveNavLinkClasses}>
-                      {supportDashboardLink.label}
-                    </NavLink>
-                  </li>
-                  {/* Collapsible Submenu */}
-                  <li>
-                    <button
-                      onClick={() => setSupportCenterOpen(!supportCenterOpen)}
-                      className={`${commonNavLinkClasses} w-full justify-between ${inactiveNavLinkClasses}`}
-                    >
-                      <span>Tickets & Queue</span>
-                      <ChevronDownIcon className={`w-4 h-4 transition-transform duration-200 ${supportCenterOpen ? 'rotate-180' : ''}`} />
-                    </button>
-                    <ul className={`overflow-hidden transition-all duration-200 ${supportCenterOpen ? 'max-h-40 opacity-100' : 'max-h-0 opacity-0'}`}>
-                      {supportSubmenuLinks.map(link => (
-                    <li key={link.to}>
-                          <NavLink to={link.to} className={submenuLinkClasses} activeClassName={activeNavLinkClasses} inactiveClassName={inactiveNavLinkClasses}>
-                        {link.label}
-                      </NavLink>
-                    </li>
-                  ))}
-                </ul>
-              </li>
-                </ul>
-              </li>
-              {/* Support Channels Section */}
+              {/* Marketing Hub Section - Collapsible */}
               <li>
                 <button
-                  onClick={() => setSupportChannelsOpen(!supportChannelsOpen)}
-                  className="flex items-center justify-between w-full px-3 py-2 text-xs font-semibold leading-6 text-muted-foreground uppercase tracking-wider hover:text-primary transition-colors"
+                  onClick={() => setMarketingHubOpen(!marketingHubOpen)}
+                  className={`flex items-center justify-between w-full px-3 py-2.5 rounded-lg transition-all duration-200 ${
+                    marketingHubOpen 
+                      ? 'bg-gradient-to-r from-indigo-500/10 to-purple-500/10 text-primary' 
+                      : 'text-muted-foreground hover:text-primary hover:bg-primary/5'
+                  }`}
                 >
-                  <span>Support Channels</span>
-                  <ChevronDownIcon className={`w-4 h-4 transition-transform duration-200 ${supportChannelsOpen ? 'rotate-180' : ''}`} />
+                  <div className="flex items-center space-x-3">
+                    <div className={`p-1.5 rounded-lg ${marketingHubOpen ? 'bg-gradient-to-r from-indigo-500 to-purple-500 text-white' : 'bg-muted'}`}>
+                      <MarketingIcon className="w-4 h-4" />
+                    </div>
+                    <span className="font-semibold text-sm">Marketing Hub</span>
+                  </div>
+                  <ChevronDownIcon className={`w-4 h-4 transition-transform duration-300 ${marketingHubOpen ? 'rotate-180' : ''}`} />
                 </button>
-                <ul className={`-mx-2 space-y-1 overflow-hidden transition-all duration-200 ${supportChannelsOpen ? 'max-h-40 opacity-100' : 'max-h-0 opacity-0'}`}>
-                  {supportChannelLinks.map(link => (
-                    <li key={link.to}>
-                      <NavLink to={link.to} className={submenuLinkClasses} activeClassName={activeNavLinkClasses} inactiveClassName={inactiveNavLinkClasses}>
-                        {link.label}
-                      </NavLink>
+                
+                {/* Marketing Hub Content - Collapsible */}
+                <div className={`overflow-hidden transition-all duration-300 ease-in-out ${marketingHubOpen ? 'max-h-[800px] opacity-100' : 'max-h-0 opacity-0'}`}>
+                  <ul role="list" className="mt-2 ml-2 border-l-2 border-indigo-200 space-y-0.5">
+                    {/* Main Marketing Links */}
+                    {marketingMainLinks.map(link => (
+                      <li key={link.to}>
+                        <NavLink to={link.to} className={submenuLinkClasses} activeClassName={activeNavLinkClasses} inactiveClassName={inactiveNavLinkClasses}>
+                          {link.label}
+                        </NavLink>
+                      </li>
+                    ))}
+                    
+                    {/* Email Marketing Dropdown */}
+                    <li>
+                      <button
+                        onClick={() => setEmailMarketingOpen(!emailMarketingOpen)}
+                        className={`${submenuLinkClasses} w-full justify-between ${inactiveNavLinkClasses}`}
+                      >
+                        <span>Email Marketing</span>
+                        <ChevronDownIcon className={`w-3.5 h-3.5 transition-transform duration-200 ${emailMarketingOpen ? 'rotate-180' : ''}`} />
+                      </button>
+                      <ul className={`overflow-hidden transition-all duration-200 ${emailMarketingOpen ? 'max-h-40 opacity-100' : 'max-h-0 opacity-0'}`}>
+                        {emailMarketingLinks.map(link => (
+                          <li key={link.to}>
+                            <NavLink to={link.to} className={nestedSubmenuLinkClasses} activeClassName={activeNavLinkClasses} inactiveClassName={inactiveNavLinkClasses}>
+                              {link.label}
+                            </NavLink>
+                          </li>
+                        ))}
+                      </ul>
                     </li>
-                  ))}
-                </ul>
+                    
+                    {/* Social Media Dropdown */}
+                    <li>
+                      <button
+                        onClick={() => setSocialMediaOpen(!socialMediaOpen)}
+                        className={`${submenuLinkClasses} w-full justify-between ${inactiveNavLinkClasses}`}
+                      >
+                        <span>Social Media</span>
+                        <ChevronDownIcon className={`w-3.5 h-3.5 transition-transform duration-200 ${socialMediaOpen ? 'rotate-180' : ''}`} />
+                      </button>
+                      <ul className={`overflow-hidden transition-all duration-200 ${socialMediaOpen ? 'max-h-40 opacity-100' : 'max-h-0 opacity-0'}`}>
+                        {socialMediaLinks.map(link => (
+                          <li key={link.to}>
+                            <NavLink to={link.to} className={nestedSubmenuLinkClasses} activeClassName={activeNavLinkClasses} inactiveClassName={inactiveNavLinkClasses}>
+                              {link.label}
+                            </NavLink>
+                          </li>
+                        ))}
+                      </ul>
+                    </li>
+                    
+                    {/* Automation & Strategy Dropdown */}
+                    <li>
+                      <button
+                        onClick={() => setAutomationOpen(!automationOpen)}
+                        className={`${submenuLinkClasses} w-full justify-between ${inactiveNavLinkClasses}`}
+                      >
+                        <span>Automation & Strategy</span>
+                        <ChevronDownIcon className={`w-3.5 h-3.5 transition-transform duration-200 ${automationOpen ? 'rotate-180' : ''}`} />
+                      </button>
+                      <ul className={`overflow-hidden transition-all duration-200 ${automationOpen ? 'max-h-48 opacity-100' : 'max-h-0 opacity-0'}`}>
+                        {automationLinks.map(link => (
+                          <li key={link.to}>
+                            <NavLink to={link.to} className={nestedSubmenuLinkClasses} activeClassName={activeNavLinkClasses} inactiveClassName={inactiveNavLinkClasses}>
+                              {link.label}
+                            </NavLink>
+                          </li>
+                        ))}
+                      </ul>
+                    </li>
+                  </ul>
+                </div>
+              </li>
+              
+              {/* Support Hub Section - Collapsible */}
+              <li>
+                <button
+                  onClick={() => setSupportHubOpen(!supportHubOpen)}
+                  className={`flex items-center justify-between w-full px-3 py-2.5 rounded-lg transition-all duration-200 ${
+                    supportHubOpen 
+                      ? 'bg-gradient-to-r from-emerald-500/10 to-teal-500/10 text-primary' 
+                      : 'text-muted-foreground hover:text-primary hover:bg-primary/5'
+                  }`}
+                >
+                  <div className="flex items-center space-x-3">
+                    <div className={`p-1.5 rounded-lg ${supportHubOpen ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white' : 'bg-muted'}`}>
+                      <SupportIcon className="w-4 h-4" />
+                    </div>
+                    <span className="font-semibold text-sm">Support Hub</span>
+                  </div>
+                  <ChevronDownIcon className={`w-4 h-4 transition-transform duration-300 ${supportHubOpen ? 'rotate-180' : ''}`} />
+                </button>
+                
+                {/* Support Hub Content - Collapsible */}
+                <div className={`overflow-hidden transition-all duration-300 ease-in-out ${supportHubOpen ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}`}>
+                  <ul role="list" className="mt-2 ml-2 border-l-2 border-emerald-200 space-y-0.5">
+                    {/* Main Support Links */}
+                    {supportMainLinks.map(link => (
+                      <li key={link.to}>
+                        <NavLink to={link.to} className={submenuLinkClasses} activeClassName={activeNavLinkClasses} inactiveClassName={inactiveNavLinkClasses}>
+                          {link.label}
+                        </NavLink>
+                      </li>
+                    ))}
+                    
+                    {/* Tickets & Queue Dropdown */}
+                    <li>
+                      <button
+                        onClick={() => setTicketsQueueOpen(!ticketsQueueOpen)}
+                        className={`${submenuLinkClasses} w-full justify-between ${inactiveNavLinkClasses}`}
+                      >
+                        <span>Tickets & Queue</span>
+                        <ChevronDownIcon className={`w-3.5 h-3.5 transition-transform duration-200 ${ticketsQueueOpen ? 'rotate-180' : ''}`} />
+                      </button>
+                      <ul className={`overflow-hidden transition-all duration-200 ${ticketsQueueOpen ? 'max-h-40 opacity-100' : 'max-h-0 opacity-0'}`}>
+                        {ticketsQueueLinks.map(link => (
+                          <li key={link.to}>
+                            <NavLink to={link.to} className={nestedSubmenuLinkClasses} activeClassName={activeNavLinkClasses} inactiveClassName={inactiveNavLinkClasses}>
+                              {link.label}
+                            </NavLink>
+                          </li>
+                        ))}
+                      </ul>
+                    </li>
+                    
+                    {/* Support Channels Dropdown */}
+                    <li>
+                      <button
+                        onClick={() => setSupportChannelsOpen(!supportChannelsOpen)}
+                        className={`${submenuLinkClasses} w-full justify-between ${inactiveNavLinkClasses}`}
+                      >
+                        <span>Support Channels</span>
+                        <ChevronDownIcon className={`w-3.5 h-3.5 transition-transform duration-200 ${supportChannelsOpen ? 'rotate-180' : ''}`} />
+                      </button>
+                      <ul className={`overflow-hidden transition-all duration-200 ${supportChannelsOpen ? 'max-h-40 opacity-100' : 'max-h-0 opacity-0'}`}>
+                        {supportChannelLinks.map(link => (
+                          <li key={link.to}>
+                            <NavLink to={link.to} className={nestedSubmenuLinkClasses} activeClassName={activeNavLinkClasses} inactiveClassName={inactiveNavLinkClasses}>
+                              {link.label}
+                            </NavLink>
+                          </li>
+                        ))}
+                      </ul>
+                    </li>
+                  </ul>
+                </div>
               </li>
               <li className="mt-auto">
                 {profile && (

@@ -13,6 +13,44 @@ logger = get_logger("supabase")
 _supabase_client: Optional[Client] = None
 
 
+class DummyResponse:
+    def __init__(self):
+        self.data = []
+
+
+class DummyTable:
+    def select(self, *args, **kwargs):
+        return self
+
+    def eq(self, *args, **kwargs):
+        return self
+
+    def limit(self, *args, **kwargs):
+        return self
+
+    def insert(self, *args, **kwargs):
+        return self
+
+    def update(self, *args, **kwargs):
+        return self
+
+    def delete(self, *args, **kwargs):
+        return self
+
+    def upsert(self, *args, **kwargs):
+        return self
+
+    def execute(self, *args, **kwargs):
+        return DummyResponse()
+
+
+class DummySupabaseClient:
+    """Minimal no-op Supabase client to allow backend to run without config."""
+
+    def table(self, *args, **kwargs):
+        return DummyTable()
+
+
 def get_supabase_client() -> Client:
     """
     Get or create Supabase client instance (singleton pattern)
@@ -26,7 +64,9 @@ def get_supabase_client() -> Client:
         try:
             # Validate configuration
             if not settings.SUPABASE_URL or not settings.SUPABASE_SERVICE_KEY:
-                raise ValueError("Supabase configuration is incomplete")
+                logger.warning("Supabase configuration is incomplete. Using DummySupabaseClient (read-only, empty data).")
+                _supabase_client = DummySupabaseClient()
+                return _supabase_client
             
             # Create client with service role key for full access
             _supabase_client = create_client(
@@ -38,7 +78,8 @@ def get_supabase_client() -> Client:
             
         except Exception as e:
             logger.error(f"Failed to initialize Supabase client: {e}")
-            raise
+            logger.warning("Falling back to DummySupabaseClient (read-only, empty data).")
+            _supabase_client = DummySupabaseClient()
     
     return _supabase_client
 
