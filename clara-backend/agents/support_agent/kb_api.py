@@ -172,10 +172,26 @@ async def search_knowledge_base(
     q: str = Query(..., min_length=2, description="Search query"),
     top_k: int = Query(5, le=20, description="Number of results")
 ):
-    """Search the knowledge base using AI embeddings"""
+    """Search the knowledge base.
+
+    Primary path:
+        - Use embedding-based semantic search via search_kb (kb_embeddings table).
+
+    Fallback path (when embeddings are not yet built or search_kb returns nothing):
+        - Do a simple ILIKE text search over kb_articles.title/content
+        - Still return KBSearchResult objects so the frontend continues to work.
+    """
+
+    # First, try the embedding-based search helper
+    results = []
     try:
         results = search_kb(q, top_k=top_k)
-        
+    except Exception:
+        # If the embedding path fails for any reason, we fall back to SQL search below
+        results = []
+
+    # If we have embedding-based results, return them directly
+    if results:
         return [
             KBSearchResult(
                 chunk_id=r.get("chunk_id", ""),
@@ -186,7 +202,54 @@ async def search_knowledge_base(
             )
             for r in results
         ]
-        
+
+    # ---------- Fallback: simple text search on kb_articles ----------
+    if not supabase:
+        raise HTTPException(500, "Database not configured")
+
+    try:
+        # Use ILIKE on title and content for a basic keyword search.
+        # Instead of matching the full phrase, we split into words so that
+        # queries like "password reset" still match content that contains
+        # "password" and/or "reset" separately.
+
+        # Split query into simple terms (words), ignoring very short tokens
+        terms = [t.strip() for t in q.split() if len(t.strip()) >= 2]
+        if not terms:
+            terms = [q.strip()]
+
+        or_clauses: list[str] = []
+        for term in terms:
+            pattern = f"%{term}%"
+            or_clauses.append(f"title.ilike.{pattern}")
+            or_clauses.append(f"content.ilike.{pattern}")
+
+        or_expression = ",".join(or_clauses)
+
+        response = (
+            supabase
+            .table("kb_articles")
+            .select("id, title, content, category")
+            .or_(or_expression)
+            .limit(top_k)
+            .execute()
+        )
+
+        fallback_results: List[KBSearchResult] = []
+        for row in response.data or []:
+            fallback_results.append(
+                KBSearchResult(
+                    chunk_id=str(row.get("id")),
+                    # We don't have a real similarity score here, so return a neutral 0.5
+                    score=0.5,
+                    content=row.get("content", ""),
+                    article_title=row.get("title"),
+                    article_category=row.get("category"),
+                )
+            )
+
+        return fallback_results
+
     except Exception as e:
         raise HTTPException(500, f"Error searching KB: {str(e)}")
 

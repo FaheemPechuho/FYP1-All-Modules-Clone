@@ -254,7 +254,7 @@ export const useKBArticlesQuery = (filters: KBFilters = {}) => {
           const data = await response.json();
           console.log('✅ Fetched KB articles from backend:', data.length);
           
-          // Transform backend format to frontend format
+          // Transform backend format (state, view_count) to frontend KBArticle
           return data.map((a: any) => ({
             id: a.id,
             title: a.title,
@@ -263,13 +263,13 @@ export const useKBArticlesQuery = (filters: KBFilters = {}) => {
             excerpt: a.content?.substring(0, 120) || '',
             category_id: a.category || 'general',
             type: 'faq',
-            status: a.status || 'published',
+            status: a.state || 'published',
             author_id: 'system',
             keywords: [],
             tags: [a.category || 'general'],
-            views_count: a.views_count || 0,
+            views_count: a.view_count || 0,
             helpful_count: a.helpful_count || 0,
-            not_helpful_count: a.not_helpful_count || 0,
+            not_helpful_count: 0,
             ai_generated: false,
             created_at: a.created_at,
             updated_at: a.updated_at,

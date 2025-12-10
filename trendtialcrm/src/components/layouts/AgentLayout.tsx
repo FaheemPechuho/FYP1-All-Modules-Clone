@@ -3,7 +3,7 @@ import React, { useState, Fragment } from 'react';
 import { Outlet, Link } from 'react-router-dom';
 import NavLink from '../common/NavLink';
 import { useAuth } from '../../contexts/AuthContext';
-import { Menu, Transition } from '@headlessui/react'; // For potential dropdowns
+import { Transition } from '@headlessui/react'; // For potential dropdowns
 import NotificationBell from '../notifications/NotificationBell';
 import AIAssistantButton from '../ai/AIAssistantButton';
 
@@ -103,6 +103,7 @@ const AgentLayout: React.FC = () => {
                           <li><NavLink to="/leads" className={commonNavLinkClasses} activeClassName={activeNavLinkClasses} inactiveClassName={inactiveNavLinkClasses}>Leads</NavLink></li>
                           <li><NavLink to="/follow-ups" className={commonNavLinkClasses} activeClassName={activeNavLinkClasses} inactiveClassName={inactiveNavLinkClasses}>Follow-Ups</NavLink></li>
                           <li><NavLink to="/meetings" className={commonNavLinkClasses} activeClassName={activeNavLinkClasses} inactiveClassName={inactiveNavLinkClasses}>Meetings</NavLink></li>
+                          <li><NavLink to="/sales" className={commonNavLinkClasses} activeClassName={activeNavLinkClasses} inactiveClassName={inactiveNavLinkClasses}>Sales Hub (AI)</NavLink></li>
                           <li><NavLink to="/marketing" className={commonNavLinkClasses} activeClassName={activeNavLinkClasses} inactiveClassName={inactiveNavLinkClasses}>Marketing Hub</NavLink></li>
                           <li><NavLink to="/todos" className={commonNavLinkClasses} activeClassName={activeNavLinkClasses} inactiveClassName={inactiveNavLinkClasses}>To-Do List</NavLink></li>
                           <li><NavLink to="/daily-report" className={commonNavLinkClasses} activeClassName={activeNavLinkClasses} inactiveClassName={inactiveNavLinkClasses}>Daily Reports</NavLink></li>
@@ -149,6 +150,7 @@ const AgentLayout: React.FC = () => {
                   <li><NavLink to="/leads" className={commonNavLinkClasses} activeClassName={activeNavLinkClasses} inactiveClassName={inactiveNavLinkClasses}>Leads</NavLink></li>
                   <li><NavLink to="/follow-ups" className={commonNavLinkClasses} activeClassName={activeNavLinkClasses} inactiveClassName={inactiveNavLinkClasses}>Follow-Ups</NavLink></li>
                   <li><NavLink to="/meetings" className={commonNavLinkClasses} activeClassName={activeNavLinkClasses} inactiveClassName={inactiveNavLinkClasses}>Meetings</NavLink></li>
+                  <li><NavLink to="/sales" className={commonNavLinkClasses} activeClassName={activeNavLinkClasses} inactiveClassName={inactiveNavLinkClasses}>Sales Hub (AI)</NavLink></li>
                   <li><NavLink to="/marketing" className={commonNavLinkClasses} activeClassName={activeNavLinkClasses} inactiveClassName={inactiveNavLinkClasses}>Marketing Hub</NavLink></li>
                   <li><NavLink to="/todos" className={commonNavLinkClasses} activeClassName={activeNavLinkClasses} inactiveClassName={inactiveNavLinkClasses}>To-Do List</NavLink></li>
                   <li><NavLink to="/daily-report" className={commonNavLinkClasses} activeClassName={activeNavLinkClasses} inactiveClassName={inactiveNavLinkClasses}>Daily Reports</NavLink></li>

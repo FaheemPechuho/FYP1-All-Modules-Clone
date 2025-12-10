@@ -21,37 +21,35 @@ class CallsAPI:
         lead_id: str,
         user_id: Optional[str] = None,
         session_id: Optional[str] = None,
-        call_type: str = "outbound",  # Changed from "ai_voice" to match schema constraint
+        call_type: str = "ai_outbound",  # Default to AI outbound for AI calls
         call_start_time: Optional[datetime] = None,
-        notes: Optional[str] = None
+        notes: Optional[str] = None,
+        is_ai_call: bool = True
     ) -> Optional[Dict[str, Any]]:
         """
         Create a new call record
         
         Args:
             lead_id: Associated lead ID
-            user_id: User ID (None for AI-only calls)
-            session_id: Conversation session ID (stored in notes, not as column)
-            call_type: Type of call (inbound, outbound, callback, voicemail) - must match schema
+            user_id: User ID (Clara AI agent ID for AI calls)
+            session_id: AI conversation session ID
+            call_type: Type of call (inbound, outbound, callback, voicemail, ai_outbound, ai_inbound)
             call_start_time: When call started (defaults to now)
-            notes: Optional call notes (can include session_id)
+            notes: Optional call notes
+            is_ai_call: Whether this is an AI-initiated call
             
         Returns:
             Created call record or None if failed
         """
         try:
-            # Note: session_id is not a column in calls table, so we store it in notes if needed
-            notes_with_session = notes or ""
-            if session_id:
-                notes_with_session = f"[Session: {session_id}]\n{notes_with_session}".strip()
-            
             call_data = {
                 "lead_id": lead_id,
                 "user_id": user_id,
-                "call_type": call_type,  # Must be: inbound, outbound, callback, or voicemail
-                "outcome": "completed",  # Will be updated when call ends
+                "call_type": call_type if is_ai_call else (call_type or "outbound"),
+                "outcome": "in_progress",  # Will be updated when call ends
                 "call_start_time": (call_start_time or datetime.utcnow()).isoformat(),
-                "notes": notes_with_session if notes_with_session else None,
+                "notes": notes,
+                "ai_session_id": session_id,  # Now stored in dedicated column
             }
             
             # Remove None values
@@ -108,9 +106,9 @@ class CallsAPI:
         duration: int,
         outcome: str,
         transcript: Optional[str] = None,
-        sentiment_score: Optional[float] = None,
-        intent_detected: Optional[str] = None,
-        confidence_score: Optional[float] = None,
+        lead_score: Optional[int] = None,
+        qualification_status: Optional[str] = None,
+        bant_assessment: Optional[Dict[str, Any]] = None,
         notes: Optional[str] = None
     ) -> bool:
         """
@@ -119,11 +117,11 @@ class CallsAPI:
         Args:
             call_id: Call ID
             duration: Duration in seconds
-            outcome: Call outcome (completed, no_answer, busy, failed, voicemail, qualified, not_interested)
+            outcome: Call outcome (completed, no_answer, busy, failed, voicemail, qualified, not_interested, follow_up_scheduled)
             transcript: Full conversation transcript
-            sentiment_score: Sentiment analysis score (-1.0 to 1.0)
-            intent_detected: Detected intent from conversation
-            confidence_score: Confidence score (0.0 to 1.0)
+            lead_score: Lead score after the call
+            qualification_status: Lead qualification status after the call
+            bant_assessment: BANT assessment dictionary
             notes: Additional call notes
             
         Returns:
@@ -133,18 +131,17 @@ class CallsAPI:
             updates = {
                 "duration": duration,
                 "outcome": outcome,
-                "call_end_time": datetime.utcnow().isoformat(),
             }
             
-            # Add optional fields
+            # Add AI call specific fields
             if transcript:
                 updates["transcript"] = transcript
-            if sentiment_score is not None:
-                updates["sentiment_score"] = round(sentiment_score, 2)
-            if intent_detected:
-                updates["intent_detected"] = intent_detected
-            if confidence_score is not None:
-                updates["confidence_score"] = round(confidence_score, 2)
+            if lead_score is not None:
+                updates["lead_score_after"] = lead_score
+            if qualification_status:
+                updates["qualification_status"] = qualification_status
+            if bant_assessment:
+                updates["bant_assessment"] = bant_assessment
             if notes:
                 # Append to existing notes if any
                 existing_call = self.get_call(call_id)
@@ -156,7 +153,7 @@ class CallsAPI:
             result = self.update_call(call_id, updates)
             
             if result:
-                logger.info(f"Ended call: {call_id} (duration: {duration}s, outcome: {outcome})")
+                logger.info(f"Ended call: {call_id} (duration: {duration}s, outcome: {outcome}, score: {lead_score})")
                 return True
             else:
                 return False
@@ -190,17 +187,24 @@ class CallsAPI:
     
     def get_call_by_session(self, session_id: str) -> Optional[Dict[str, Any]]:
         """
-        Get call by session ID (searches in notes since session_id is not a column)
+        Get call by AI session ID
         
         Args:
-            session_id: Session ID
+            session_id: AI Session ID
             
         Returns:
             Call data or None if not found
         """
         try:
-            # Since session_id is not a column, search in notes
-            # This is less efficient but works with current schema
+            # First try the new dedicated ai_session_id column
+            result = self.client.table("calls").select("*").eq(
+                "ai_session_id", session_id
+            ).order("created_at", desc=True).limit(1).execute()
+            
+            if result.data:
+                return result.data[0]
+            
+            # Fallback: search in notes for legacy calls
             result = self.client.table("calls").select("*").like(
                 "notes", f"%[Session: {session_id}]%"
             ).order("created_at", desc=True).limit(1).execute()
@@ -355,4 +359,144 @@ class CallsAPI:
         except Exception as e:
             logger.error(f"Error adding note to call {call_id}: {e}")
             return False
+    
+    def list_ai_calls(self, limit: int = 50) -> list:
+        """
+        List all AI calls with lead information for Sales Hub
+        
+        Args:
+            limit: Maximum number of calls to return
+            
+        Returns:
+            List of AI call records with lead info
+        """
+        try:
+            # Get AI calls (ai_outbound, ai_inbound) with lead info
+            result = self.client.table("calls").select(
+                "*, leads(id, contact_person, email, lead_score, qualification_status, clients(client_name))"
+            ).in_(
+                "call_type", ["ai_outbound", "ai_inbound", "outbound"]  # Include outbound for backward compatibility
+            ).order("call_start_time", desc=True).limit(limit).execute()
+            
+            calls = result.data or []
+            
+            # Transform to match frontend expected format
+            formatted_calls = []
+            for call in calls:
+                lead_data = call.get("leads", {}) or {}
+                client_data = lead_data.get("clients", {}) or {}
+                
+                formatted_calls.append({
+                    "id": call["id"],
+                    "lead_id": call.get("lead_id"),
+                    "duration": call.get("duration", 0) or 0,
+                    "call_type": call.get("call_type"),
+                    "outcome": call.get("outcome"),
+                    "notes": call.get("notes"),
+                    "call_start_time": call.get("call_start_time"),
+                    "created_at": call.get("created_at"),
+                    "transcript": call.get("transcript"),
+                    "lead_score_after": call.get("lead_score_after"),
+                    "qualification_status": call.get("qualification_status"),
+                    "bant_assessment": call.get("bant_assessment"),
+                    "ai_session_id": call.get("ai_session_id"),
+                    "lead": {
+                        "contact_person": lead_data.get("contact_person"),
+                        "company_name": client_data.get("client_name"),
+                        "email": lead_data.get("email"),
+                        "lead_score": lead_data.get("lead_score"),
+                    } if lead_data else None
+                })
+            
+            logger.debug(f"Found {len(formatted_calls)} AI calls")
+            return formatted_calls
+            
+        except Exception as e:
+            logger.error(f"Error listing AI calls: {e}")
+            return []
+    
+    def get_ai_call_statistics(self) -> Dict[str, Any]:
+        """
+        Get AI call statistics for Sales Hub dashboard
+        
+        Returns:
+            Statistics dictionary
+        """
+        try:
+            # Get AI calls
+            result = self.client.table("calls").select("*").in_(
+                "call_type", ["ai_outbound", "ai_inbound", "outbound"]
+            ).execute()
+            
+            calls = result.data or []
+            
+            # Calculate statistics
+            total_calls = len(calls)
+            total_duration = sum(call.get("duration", 0) or 0 for call in calls)
+            avg_duration = total_duration / total_calls if total_calls > 0 else 0
+            
+            # Count by outcome
+            outcomes = {}
+            for call in calls:
+                outcome = call.get("outcome", "unknown")
+                outcomes[outcome] = outcomes.get(outcome, 0) + 1
+            
+            # Calculate qualification rate
+            qualified_outcomes = ["qualified", "completed"]
+            qualified_calls = sum(outcomes.get(o, 0) for o in qualified_outcomes)
+            qualification_rate = (qualified_calls / total_calls * 100) if total_calls > 0 else 0
+            
+            # Calculate success rate (calls that completed)
+            completed_outcomes = ["completed", "qualified", "follow_up_scheduled"]
+            completed_calls = sum(outcomes.get(o, 0) for o in completed_outcomes)
+            success_rate = (completed_calls / total_calls * 100) if total_calls > 0 else 0
+            
+            # Calls by day (last 7 days)
+            from datetime import timedelta
+            calls_by_day = []
+            today = datetime.utcnow().date()
+            for i in range(6, -1, -1):
+                day = today - timedelta(days=i)
+                day_count = sum(
+                    1 for call in calls 
+                    if call.get("call_start_time") and 
+                    datetime.fromisoformat(call["call_start_time"].replace("Z", "+00:00")).date() == day
+                )
+                calls_by_day.append({
+                    "date": day.isoformat(),
+                    "count": day_count
+                })
+            
+            stats = {
+                "totalCalls": total_calls,
+                "totalDurationSeconds": total_duration,
+                "averageDurationSeconds": round(avg_duration),
+                "successRate": round(success_rate),
+                "qualificationRate": round(qualification_rate),
+                "outcomes": outcomes,
+                "callsByDay": calls_by_day,
+                "qualificationBreakdown": {
+                    "unqualified": outcomes.get("not_interested", 0) + outcomes.get("no_answer", 0),
+                    "marketing_qualified": outcomes.get("completed", 0),
+                    "sales_qualified": outcomes.get("qualified", 0),
+                    "opportunity": outcomes.get("follow_up_scheduled", 0),
+                }
+            }
+            
+            logger.debug(f"AI call statistics: {stats}")
+            return stats
+            
+        except Exception as e:
+            logger.error(f"Error getting AI call statistics: {e}")
+            return {
+                "totalCalls": 0,
+                "totalDurationSeconds": 0,
+                "averageDurationSeconds": 0,
+                "successRate": 0,
+                "qualificationRate": 0,
+                "outcomes": {},
+                "callsByDay": [],
+                "qualificationBreakdown": {},
+                "error": str(e)
+            }
 

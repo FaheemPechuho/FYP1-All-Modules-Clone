@@ -20,6 +20,7 @@ import DailyReportPage from './pages/DailyReportPage'; // Import the new Daily R
 import AttendancePage from './pages/AttendancePage'; // Added AttendancePage import
 import NotificationSettingsPage from './pages/NotificationSettingsPage'; // Import NotificationSettingsPage
 import TodosPage from './pages/TodosPage'; // Import TodosPage
+import SalesHubPage from './pages/SalesHubPage'; // Import SalesHubPage
 import NotFoundPage from './pages/NotFoundPage';
 
 // Marketing Hub Pages
@@ -134,6 +135,9 @@ function App() {
             <Route path="/attendance" element={<AttendancePage />} /> {/* Added AttendancePage route */}
             <Route path="/notifications" element={<NotificationSettingsPage />} /> {/* Added NotificationSettingsPage route */}
             <Route path="/todos" element={<TodosPage />} /> {/* Added TodosPage route */}
+            
+            {/* Sales Hub Route */}
+            <Route path="/sales" element={<SalesHubPage />} /> {/* Added SalesHubPage route */}
             
             {/* Marketing Hub Routes - Full Marketing Suite */}
             <Route path="/marketing" element={<MarketingDashboard />} />

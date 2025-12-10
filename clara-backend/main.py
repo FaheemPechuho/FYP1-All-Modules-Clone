@@ -344,6 +344,15 @@ from routes.marketing import router as marketing_router
 app.include_router(marketing_router)
 
 
+# =============================================================================
+# SALES CALL ROUTES (Voice Pipeline Integration)
+# =============================================================================
+
+# Import and include sales call routes for AI voice calls
+from routes.sales_calls import router as sales_calls_router
+app.include_router(sales_calls_router)
+
+
 def main():
     """Main entry point"""
     logger.info("="*60)

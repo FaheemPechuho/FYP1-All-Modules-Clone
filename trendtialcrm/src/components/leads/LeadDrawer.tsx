@@ -26,6 +26,7 @@ import { INDUSTRY_OPTIONS } from '../../types/leadSchema';
 import { LeadActivityTimeline } from './LeadActivityTimeline';
 import { LeadScoring } from './LeadScoring';
 import { LeadNurturing } from './LeadNurturing';
+import { LeadAICalls } from './LeadAICalls';
 import AISuggestions from '../marketing/AISuggestions';
 
 interface LeadDrawerProps {
@@ -107,7 +108,7 @@ export const LeadDrawer: React.FC<LeadDrawerProps> = ({ lead, isOpen, onClose })
   };
 
   const priorityInfo = getPriorityDisplay(lead.status_bucket);
-  const qualificationInfo = getQualificationDisplay(lead.qualification_status);
+  const qualificationInfo = getQualificationDisplay(lead.qualification_status || null);
 
   return (
     <Transition.Root show={isOpen} as={Fragment}>
@@ -239,17 +240,18 @@ export const LeadDrawer: React.FC<LeadDrawerProps> = ({ lead, isOpen, onClose })
 
                     {/* Enhanced Tab Navigation */}
                     <div className="border-b border-gray-200 bg-gradient-to-r from-gray-50 to-blue-50">
-                      <nav className="flex space-x-8 px-8" aria-label="Tabs">
+                      <nav className="flex space-x-6 px-8 overflow-x-auto" aria-label="Tabs">
                         {[
                           { name: 'Overview', icon: ChartBarIcon, color: 'text-blue-600' },
                           { name: 'Activity Timeline', icon: ClockIcon, color: 'text-green-600' },
+                          { name: 'AI Calls', icon: PhoneIcon, color: 'text-indigo-600' },
                           { name: 'Lead Scoring', icon: SparklesIcon, color: 'text-purple-600' },
                           { name: 'Nurturing', icon: Cog6ToothIcon, color: 'text-orange-600' }
                         ].map((tab, index) => (
                           <button
                             key={tab.name}
                             onClick={() => setSelectedTab(index)}
-                            className={`flex items-center space-x-2 py-4 px-1 border-b-2 font-medium text-sm transition-all duration-200 ${
+                            className={`flex items-center space-x-2 py-4 px-1 border-b-2 font-medium text-sm transition-all duration-200 whitespace-nowrap ${
                               selectedTab === index
                                 ? `border-indigo-500 ${tab.color}`
                                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -270,8 +272,9 @@ export const LeadDrawer: React.FC<LeadDrawerProps> = ({ lead, isOpen, onClose })
                       <div className="p-8">
                         {selectedTab === 0 && <EnhancedLeadOverview lead={lead} />}
                         {selectedTab === 1 && <LeadActivityTimeline lead={lead} />}
-                        {selectedTab === 2 && <LeadScoring lead={lead} />}
-                        {selectedTab === 3 && <LeadNurturing lead={lead} />}
+                        {selectedTab === 2 && <LeadAICalls lead={lead} />}
+                        {selectedTab === 3 && <LeadScoring lead={lead} />}
+                        {selectedTab === 4 && <LeadNurturing lead={lead} />}
                       </div>
                     </div>
                   </div>

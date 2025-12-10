@@ -24,7 +24,7 @@ class Config:
 
     TRANSCRIPTION_MODEL = 'groq'  # possible values: openai, groq, deepgram, fastwhisperapi
     RESPONSE_MODEL = 'groq'  # possible values: openai, groq, ollama
-    TTS_MODEL = 'melotts'  # possible values: openai, deepgram, elevenlabs, melotts, cartesia
+    TTS_MODEL = 'piper'  # possible values: openai, deepgram, elevenlabs, melotts, cartesia
 
     # currently using the MeloTTS for local models. here is how to get started:
     # https://github.com/myshell-ai/MeloTTS/blob/main/docs/install.md#linux-and-macos-install
