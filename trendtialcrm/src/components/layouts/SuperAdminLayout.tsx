@@ -117,6 +117,7 @@ const SuperAdminLayout: React.FC = () => {
 
   // Sales Hub Links
   const salesHubLinks = [
+    { to: '/sales', label: 'AI Call Center' },
     { to: '/leads', label: 'Leads Overview' },
     { to: '/follow-ups', label: 'Follow-Ups' },
     { to: '/meetings', label: 'Meetings' },
