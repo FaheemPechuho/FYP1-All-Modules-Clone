@@ -53,27 +53,55 @@ interface BackendHealth {
 // Session storage key for persisting active call
 const SESSION_STORAGE_KEY = 'clara_active_call_session';
 
-const AICallPanel: React.FC = () => {
-  // Call state - initialize from sessionStorage if available
-  const [sessionId, setSessionId] = useState<string | null>(() => {
+// Helper to get saved session data
+const getSavedSession = () => {
+  try {
     const saved = sessionStorage.getItem(SESSION_STORAGE_KEY);
-    return saved ? JSON.parse(saved).sessionId : null;
+    return saved ? JSON.parse(saved) : null;
+  } catch {
+    return null;
+  }
+};
+
+const AICallPanel: React.FC = () => {
+  // Call state - initialize ALL from sessionStorage if available
+  const [sessionId, setSessionId] = useState<string | null>(() => {
+    const saved = getSavedSession();
+    return saved?.sessionId ?? null;
   });
   const [callStatus, setCallStatus] = useState<CallStatus>(() => {
-    const saved = sessionStorage.getItem(SESSION_STORAGE_KEY);
-    return saved ? JSON.parse(saved).callStatus : 'idle';
+    const saved = getSavedSession();
+    return saved?.callStatus ?? 'idle';
   });
-  const [callDuration, setCallDuration] = useState(0);
-  const [qualificationStatus, setQualificationStatus] = useState<QualificationStatus>('unqualified');
-  const [leadScore, setLeadScore] = useState(0);
-  const [bant, setBant] = useState<BANTAssessment>({
-    budget: 'unknown',
-    authority: 'unknown',
-    need: 'unknown',
-    timeline: 'unknown',
+  const [callDuration, setCallDuration] = useState(() => {
+    const saved = getSavedSession();
+    return saved?.callDuration ?? 0;
   });
-  const [transcript, setTranscript] = useState<TranscriptMessage[]>([]);
-  const [statusMessages, setStatusMessages] = useState<string[]>([]);
+  const [qualificationStatus, setQualificationStatus] = useState<QualificationStatus>(() => {
+    const saved = getSavedSession();
+    return saved?.qualificationStatus ?? 'unqualified';
+  });
+  const [leadScore, setLeadScore] = useState(() => {
+    const saved = getSavedSession();
+    return saved?.leadScore ?? 0;
+  });
+  const [bant, setBant] = useState<BANTAssessment>(() => {
+    const saved = getSavedSession();
+    return saved?.bant ?? {
+      budget: 'unknown',
+      authority: 'unknown',
+      need: 'unknown',
+      timeline: 'unknown',
+    };
+  });
+  const [transcript, setTranscript] = useState<TranscriptMessage[]>(() => {
+    const saved = getSavedSession();
+    return saved?.transcript ?? [];
+  });
+  const [statusMessages, setStatusMessages] = useState<string[]>(() => {
+    const saved = getSavedSession();
+    return saved?.statusMessages ?? [];
+  });
   const [error, setError] = useState<string | null>(null);
   
   // Backend health
@@ -89,14 +117,24 @@ const AICallPanel: React.FC = () => {
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const isResumingRef = useRef(false);
 
-  // Persist session to sessionStorage when it changes
+  // Persist ALL session state to sessionStorage when it changes
   useEffect(() => {
     if (sessionId && (callStatus === 'active' || callStatus === 'connecting')) {
-      sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify({ sessionId, callStatus }));
+      const sessionData = {
+        sessionId,
+        callStatus,
+        callDuration,
+        qualificationStatus,
+        leadScore,
+        bant,
+        transcript,
+        statusMessages,
+      };
+      sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(sessionData));
     } else if (callStatus === 'idle' || callStatus === 'completed' || callStatus === 'failed') {
       sessionStorage.removeItem(SESSION_STORAGE_KEY);
     }
-  }, [sessionId, callStatus]);
+  }, [sessionId, callStatus, callDuration, qualificationStatus, leadScore, bant, transcript, statusMessages]);
 
   // Check backend health on mount
   useEffect(() => {
@@ -107,7 +145,7 @@ const AICallPanel: React.FC = () => {
   useEffect(() => {
     if (callStatus === 'active') {
       timerRef.current = setInterval(() => {
-        setCallDuration(prev => prev + 1);
+        setCallDuration((prev: number) => prev + 1);
       }, 1000);
     }
     return () => {
@@ -232,16 +270,20 @@ const AICallPanel: React.FC = () => {
   }, []);
 
   // Resume active session on mount (after startPolling is defined)
+  // State is already restored from sessionStorage in useState initializers
   useEffect(() => {
-    const saved = sessionStorage.getItem(SESSION_STORAGE_KEY);
+    const saved = getSavedSession();
     if (saved && !isResumingRef.current) {
-      const { sessionId: savedSessionId, callStatus: savedStatus } = JSON.parse(saved);
+      const { sessionId: savedSessionId, callStatus: savedStatus } = saved;
       if (savedSessionId && (savedStatus === 'active' || savedStatus === 'connecting')) {
         console.log('Resuming active call session:', savedSessionId);
         isResumingRef.current = true;
-        setSessionId(savedSessionId);
-        setCallStatus(savedStatus);
-        setStatusMessages(['🔄 Resuming active call session...']);
+        // State is already restored, just add resume message and start polling
+        setStatusMessages(prev => {
+          // Don't add duplicate resume messages
+          if (prev.some(m => m.includes('Resuming'))) return prev;
+          return [...prev, '🔄 Resuming active call session...'];
+        });
         // Start polling for the resumed session
         startPolling(savedSessionId);
       }
