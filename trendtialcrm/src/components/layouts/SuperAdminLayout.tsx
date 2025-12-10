@@ -3,7 +3,7 @@ import React, { useState, Fragment } from 'react';
 import { Outlet, Link } from 'react-router-dom';
 import NavLink from '../common/NavLink';
 import { useAuth } from '../../contexts/AuthContext';
-import { Menu, Transition } from '@headlessui/react';
+import { Transition } from '@headlessui/react';
 import NotificationBell from '../notifications/NotificationBell';
 import AIAssistantButton from '../ai/AIAssistantButton';
 
@@ -26,6 +26,12 @@ const LogoutIcon = ({ className = 'w-5 h-5' }) => (
     </svg>
 );
 
+const ChevronDownIcon = ({ className = 'w-4 h-4' }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className={className}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+  </svg>
+);
+
 // Example icons for admin links (replace with actual icons)
 const UsersIcon = ({ className = 'w-5 h-5 mr-3' }) => (
     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
@@ -42,10 +48,13 @@ const SettingsIcon = ({ className = 'w-5 h-5 mr-3' }) => (
 const SuperAdminLayout: React.FC = () => {
   const { logout, profile } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [supportCenterOpen, setSupportCenterOpen] = useState(false);
+  const [supportChannelsOpen, setSupportChannelsOpen] = useState(false);
 
   const commonNavLinkClasses = 'flex items-center space-x-3 px-3 py-2.5 text-sm font-medium transition-all duration-200 ease-in-out';
   const activeNavLinkClasses = 'bg-primary/10 text-primary rounded-lg font-semibold';
   const inactiveNavLinkClasses = 'text-muted-foreground hover:text-primary hover:bg-primary/5 rounded-lg';
+  const submenuLinkClasses = 'flex items-center px-3 py-2 text-sm font-medium transition-all duration-200 ease-in-out pl-6';
 
   // Super Admin Navigation Links
   const superAdminNavLinks = [
@@ -63,15 +72,17 @@ const SuperAdminLayout: React.FC = () => {
     { to: '/todos', label: 'To-Do List', icon: null },
   ];
 
-  // Support Center Navigation Links
-  const supportNavLinks = [
-    { to: '/support', label: 'Dashboard', icon: null },
+  // Support Center - Main link
+  const supportDashboardLink = { to: '/support', label: 'Dashboard', icon: null };
+  
+  // Support Center Submenu Links
+  const supportSubmenuLinks = [
     { to: '/support/tickets', label: 'All Tickets', icon: null },
     { to: '/support/agent-queue', label: 'Agent Queue', icon: null },
     { to: '/support/knowledge-base', label: 'Knowledge Base', icon: null },
   ];
 
-  // Support Channels Links
+  // Support Channels Submenu Links
   const supportChannelLinks = [
     { to: '/support/email', label: 'Email Ingest', icon: null },
     { to: '/support/chat', label: 'Create Ticket', icon: null },
@@ -186,24 +197,50 @@ const SuperAdminLayout: React.FC = () => {
                   ))}
                 </ul>
               </li>
+              {/* Support Center Section */}
               <li>
                 <div className="text-xs font-semibold leading-6 text-muted-foreground uppercase tracking-wider px-3 mb-2">Support Center</div>
                 <ul role="list" className="-mx-2 space-y-1">
-                  {supportNavLinks.map(link => (
+                  {/* Dashboard Link */}
+                  <li>
+                    <NavLink to={supportDashboardLink.to} className={commonNavLinkClasses} activeClassName={activeNavLinkClasses} inactiveClassName={inactiveNavLinkClasses}>
+                      {supportDashboardLink.label}
+                    </NavLink>
+                  </li>
+                  {/* Collapsible Submenu */}
+                  <li>
+                    <button
+                      onClick={() => setSupportCenterOpen(!supportCenterOpen)}
+                      className={`${commonNavLinkClasses} w-full justify-between ${inactiveNavLinkClasses}`}
+                    >
+                      <span>Tickets & Queue</span>
+                      <ChevronDownIcon className={`w-4 h-4 transition-transform duration-200 ${supportCenterOpen ? 'rotate-180' : ''}`} />
+                    </button>
+                    <ul className={`overflow-hidden transition-all duration-200 ${supportCenterOpen ? 'max-h-40 opacity-100' : 'max-h-0 opacity-0'}`}>
+                      {supportSubmenuLinks.map(link => (
                     <li key={link.to}>
-                      <NavLink to={link.to} className={commonNavLinkClasses} activeClassName={activeNavLinkClasses} inactiveClassName={inactiveNavLinkClasses}>
+                          <NavLink to={link.to} className={submenuLinkClasses} activeClassName={activeNavLinkClasses} inactiveClassName={inactiveNavLinkClasses}>
                         {link.label}
                       </NavLink>
                     </li>
                   ))}
                 </ul>
               </li>
+                </ul>
+              </li>
+              {/* Support Channels Section */}
               <li>
-                <div className="text-xs font-semibold leading-6 text-muted-foreground uppercase tracking-wider px-3 mb-2">Support Channels</div>
-                <ul role="list" className="-mx-2 space-y-1">
+                <button
+                  onClick={() => setSupportChannelsOpen(!supportChannelsOpen)}
+                  className="flex items-center justify-between w-full px-3 py-2 text-xs font-semibold leading-6 text-muted-foreground uppercase tracking-wider hover:text-primary transition-colors"
+                >
+                  <span>Support Channels</span>
+                  <ChevronDownIcon className={`w-4 h-4 transition-transform duration-200 ${supportChannelsOpen ? 'rotate-180' : ''}`} />
+                </button>
+                <ul className={`-mx-2 space-y-1 overflow-hidden transition-all duration-200 ${supportChannelsOpen ? 'max-h-40 opacity-100' : 'max-h-0 opacity-0'}`}>
                   {supportChannelLinks.map(link => (
                     <li key={link.to}>
-                      <NavLink to={link.to} className={commonNavLinkClasses} activeClassName={activeNavLinkClasses} inactiveClassName={inactiveNavLinkClasses}>
+                      <NavLink to={link.to} className={submenuLinkClasses} activeClassName={activeNavLinkClasses} inactiveClassName={inactiveNavLinkClasses}>
                         {link.label}
                       </NavLink>
                     </li>
