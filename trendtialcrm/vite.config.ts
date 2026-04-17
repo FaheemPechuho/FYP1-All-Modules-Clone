@@ -9,17 +9,6 @@ export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
     port: 8080,
-    proxy: {
-      '/api/resend-proxy': {
-        target: 'https://api.resend.com',
-        changeOrigin: true,
-        secure: true,
-        rewrite: () => '/emails',
-        headers: {
-          Authorization: 'Bearer re_e2bEvcQt_HJAUKNzFBRywFL9UgY5aDNhP',
-        },
-      },
-    },
   },
   plugins: [
     react(),

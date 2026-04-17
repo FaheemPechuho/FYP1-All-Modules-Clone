@@ -1,7 +1,7 @@
 // src/lib/emailService.ts
-// Sends email via Vite's dev-server proxy (/api/resend-proxy).
-// The proxy (vite.config.ts) forwards the request to https://api.resend.com/emails
-// and injects the Authorization header — no CORS, no API key in the browser bundle.
+// Sends email via clara-backend endpoint (/api/marketing/email/send).
+// The backend calls Resend API directly with the API key from environment.
+// This works in both development and production (no Vite proxy dependency).
 
 // ── Core send function ───────────────────────────────────────────────────────
 export interface SendEmailOptions {
@@ -11,11 +11,10 @@ export interface SendEmailOptions {
 }
 
 export async function sendEmail(options: SendEmailOptions): Promise<{ id: string }> {
-  const response = await fetch('/api/resend-proxy', {
+  const response = await fetch('/api/marketing/email/send', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      from: 'onboarding@resend.dev',
       to: options.to,
       subject: options.subject,
       html: options.html,
@@ -24,7 +23,7 @@ export async function sendEmail(options: SendEmailOptions): Promise<{ id: string
 
   const data = await response.json();
   if (!response.ok) {
-    throw new Error(data.message || data.name || `Email send failed (${response.status})`);
+    throw new Error(data.detail || data.message || `Email send failed (${response.status})`);
   }
   return data;
 }
