@@ -97,13 +97,13 @@ export class NotificationScheduler {
           due_date,
           notes,
           user_id,
-          leads!inner(name)
+          leads!inner(contact_person)
         `)
         .eq('status', 'pending')
         .lt('due_date', new Date().toISOString());
 
       for (const followUp of overdueFollowUps || []) {
-        const leadName = (followUp.leads as any)?.name || 'Unknown Lead';
+        const leadName = (followUp.leads as any)?.contact_person || 'Unknown Lead';
         await this.createNotification({
           userId: followUp.user_id,
           type: 'overdue_follow_up',

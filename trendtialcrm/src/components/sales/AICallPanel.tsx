@@ -116,6 +116,8 @@ const AICallPanel: React.FC = () => {
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const isResumingRef = useRef(false);
+  // Sentinel ref — keeps the transcript pinned to the latest message
+  const transcriptEndRef = useRef<HTMLDivElement | null>(null);
 
   // Persist ALL session state to sessionStorage when it changes
   useEffect(() => {
@@ -155,15 +157,16 @@ const AICallPanel: React.FC = () => {
     };
   }, [callStatus]);
 
+  // Auto-scroll to latest message whenever transcript grows
+  useEffect(() => {
+    transcriptEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [transcript]);
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      if (pollingRef.current) {
-        clearInterval(pollingRef.current);
-      }
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-      }
+      if (pollingRef.current) clearInterval(pollingRef.current);
+      if (timerRef.current)  clearInterval(timerRef.current);
     };
   }, []);
 
@@ -648,6 +651,8 @@ const AICallPanel: React.FC = () => {
                     <span className="text-xs">Listening...</span>
                   </div>
                 )}
+                {/* Scroll sentinel — always at the bottom */}
+                <div ref={transcriptEndRef} />
               </div>
             </div>
 
@@ -738,6 +743,8 @@ const AICallPanel: React.FC = () => {
                       </div>
                     </div>
                   ))}
+                  {/* Scroll sentinel for completed transcript */}
+                  <div ref={transcriptEndRef} />
                 </div>
               </div>
             )}

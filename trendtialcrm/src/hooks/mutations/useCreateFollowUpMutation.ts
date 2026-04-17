@@ -39,7 +39,7 @@ export const useCreateFollowUpMutation = () => {
         .insert(dataToInsert)
         .select(`
           *,
-          leads!inner(name)
+          leads!inner(id, contact_person, clients(client_name))
         `)
         .single(); // Assuming you want the created record back
 
@@ -59,7 +59,8 @@ export const useCreateFollowUpMutation = () => {
         
         // Schedule notifications for the new follow-up
         try {
-          const leadName = (data.leads as any)?.name || 'Unknown Lead';
+          const lead = data.leads as any;
+          const leadName = lead?.contact_person || lead?.clients?.client_name || 'Unknown Lead';
           await notificationScheduler.scheduleFollowUpNotifications(
             data.id,
             data.due_date,
