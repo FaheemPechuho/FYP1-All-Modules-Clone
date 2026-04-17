@@ -109,9 +109,19 @@ class VoiceCallService:
                 self._orchestrator = get_orchestrator()
                 logger.info("Orchestrator initialized")
             
-            if "sales" not in self._agents:
+            if "sales" not in self._agents and settings.SALES_AGENT_ENABLED:
                 self._agents["sales"] = SalesAgent()
                 logger.info("Sales Agent initialized")
+            
+            if "support" not in self._agents and settings.SUPPORT_AGENT_ENABLED:
+                from agents.support_agent.agent import SupportAgent
+                self._agents["support"] = SupportAgent()
+                logger.info("Support Agent initialized")
+            
+            if "marketing" not in self._agents and settings.MARKETING_AGENT_ENABLED:
+                from agents.marketing_agent.agent import MarketingAgent
+                self._agents["marketing"] = MarketingAgent()
+                logger.info("Marketing Agent initialized")
             
             if self._voice_stream is None:
                 self._voice_stream = VoiceStream()
@@ -188,8 +198,15 @@ class VoiceCallService:
                             session_id=session_id
                         )
                         
-                        # Route to agent
+                        # Route to agent; fall back to sales if target is unavailable
                         response = self._orchestrator.route_to_agent(processed, self._agents)
+                        if not response.get("success", True) and "not initialized" in response.get("error", ""):
+                            logger.warning(
+                                f"Falling back to sales agent "
+                                f"(original target: {processed.get('routing', {}).get('target_agent')})"
+                            )
+                            processed["routing"]["target_agent"] = "sales"
+                            response = self._orchestrator.route_to_agent(processed, self._agents)
                         
                         # Update session with metadata
                         metadata = response.get("metadata", {})

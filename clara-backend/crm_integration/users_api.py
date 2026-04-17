@@ -2,6 +2,7 @@
 Users API - Manage user lookups and agent assignments
 """
 
+import uuid
 from typing import Dict, Any, Optional, List
 from .supabase_client import get_supabase_client
 from utils.logger import get_logger
@@ -91,24 +92,61 @@ class UsersAPI:
             # Clara AI agent doesn't exist, try to create it
             logger.info("Clara AI agent not found, attempting to create...")
             
-            # Note: This requires the users table to not have strict FK to auth.users
-            # or we need to create an auth user first
+            # public.users.id is a FK to auth.users.id — must create auth user first
             try:
-                create_result = self.client.table("users").insert({
+                # Step 1: Create auth user via Admin API (service role key required)
+                auth_response = self.client.auth.admin.create_user({
+                    "email": "clara@trendtialcrm.ai",
+                    "password": "ClaraAI@2024!SecurePass",
+                    "email_confirm": True,
+                    "user_metadata": {
+                        "full_name": "Clara AI Voice Assistant",
+                        "role": "agent"
+                    }
+                })
+                
+                clara_id = auth_response.user.id if auth_response.user else None
+                
+                if not clara_id:
+                    logger.error("Failed to create auth user for Clara AI agent")
+                    return None
+                
+                # Step 2: Upsert into public.users — handles cases where a trigger
+                # already inserted the row when the auth user was created
+                upsert_result = self.client.table("users").upsert({
+                    "id": clara_id,
                     "email": "clara@trendtialcrm.ai",
                     "full_name": "Clara AI Voice Assistant",
                     "role": "agent",
-                }).execute()
+                }, on_conflict="id").execute()
                 
-                if create_result.data:
-                    logger.info("Clara AI agent created successfully")
-                    self._clara_agent_cache = create_result.data[0]
+                if upsert_result.data:
+                    logger.info(f"Clara AI agent created/updated with ID: {clara_id}")
+                    self._clara_agent_cache = upsert_result.data[0]
                     return self._clara_agent_cache
                 else:
-                    logger.error("Failed to create Clara AI agent")
+                    logger.error("Failed to upsert Clara AI agent into public.users")
                     return None
                     
             except Exception as create_error:
+                err_str = str(create_error)
+                # Auth user may already exist — try to find the matching public.users row
+                if "duplicate" in err_str.lower() or "already" in err_str.lower():
+                    logger.info("Auth user already exists, looking up public.users record...")
+                    retry = self.client.table("users").select("*").eq(
+                        "email", "clara@trendtialcrm.ai"
+                    ).execute()
+                    if retry.data:
+                        # Ensure role is set correctly
+                        user = retry.data[0]
+                        if user.get("role") != "agent":
+                            self.client.table("users").update(
+                                {"role": "agent", "full_name": "Clara AI Voice Assistant"}
+                            ).eq("id", user["id"]).execute()
+                        logger.info(f"Clara AI agent found via fallback lookup: {user['id']}")
+                        self._clara_agent_cache = user
+                        return self._clara_agent_cache
+                
                 logger.error(f"Error creating Clara AI agent: {create_error}")
                 logger.warning("You may need to manually create clara@trendtialcrm.ai user in Supabase")
                 return None

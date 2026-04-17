@@ -22,7 +22,7 @@ import React, { useState, useCallback } from 'react';
 import { Lead } from '../../types';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
-import { 
+import {
   RocketLaunchIcon,
   ClipboardDocumentIcon,
   PaperAirplaneIcon,
@@ -30,8 +30,13 @@ import {
   SparklesIcon,
   ExclamationTriangleIcon,
   CheckCircleIcon,
-  ServerIcon
+  ServerIcon,
+  BookmarkIcon,
 } from '@heroicons/react/24/outline';
+import { addStoredCampaign, CONTENT_TYPE_CHANNEL, CONTENT_TYPE_LABEL } from '../../lib/campaignStore';
+
+// Email service
+import { sendEmail, buildMarketingEmailHtml } from '../../lib/emailService';
 
 // Import Gemini AI service for fallback content generation
 import {
@@ -225,6 +230,14 @@ const ContentStudio: React.FC<ContentStudioProps> = ({ leads }) => {
   const [toast, setToast] = useState<Toast | null>(null);
   const [copied, setCopied] = useState(false);
 
+  // Email send state
+  const [showSendForm, setShowSendForm] = useState(false);
+  const [recipientEmail, setRecipientEmail] = useState('');
+  const [isSendingEmail, setIsSendingEmail] = useState(false);
+
+  // Dashboard save state
+  const [savedToDashboard, setSavedToDashboard] = useState(false);
+
   /**
    * Show toast notification
    */
@@ -390,11 +403,75 @@ const ContentStudio: React.FC<ContentStudioProps> = ({ leads }) => {
   };
 
   /**
-   * Simulate sending content
+   * Save the current generated campaign to the Marketing Dashboard
+   */
+  const handleSaveToDashboard = () => {
+    if (!generatedContent) return;
+    const lead = getSelectedLead();
+    const channel = CONTENT_TYPE_CHANNEL[contentType] || contentType;
+    const label   = CONTENT_TYPE_LABEL[contentType]  || contentType;
+    const leadName = lead
+      ? (lead.clients?.client_name || lead.contact_person || 'Lead')
+      : 'General';
+
+    addStoredCampaign({
+      id:               `cs-${contentType}-${selectedLead || 'gen'}-${Date.now()}`,
+      name:             `${label} — ${leadName}`,
+      channel,
+      total_leads:      lead ? 1 : 0,
+      closed_won:       0,
+      total_value:      lead?.deal_value ?? 0,
+      conversion_rate:  0,
+      avg_deal_value:   0,
+      status:           'active',
+    });
+
+    setSavedToDashboard(true);
+    showToast('success', `Campaign saved to Dashboard under "${channel}"!`);
+    setTimeout(() => setSavedToDashboard(false), 3000);
+  };
+
+  /**
+   * Open send form — pre-fill with lead email if available
    */
   const handleSend = () => {
     if (!generatedContent) return;
-    showToast('info', 'Send functionality coming soon! Content saved for reference.');
+    if (contentType !== 'email') {
+      showToast('info', 'Direct send is only available for Email content. Copy other formats manually.');
+      return;
+    }
+    const lead = getSelectedLead();
+    setRecipientEmail(lead?.email || '');
+    setShowSendForm(prev => !prev);
+  };
+
+  /**
+   * Send the generated email via Resend
+   */
+  const handleConfirmSend = async () => {
+    if (!generatedContent || !recipientEmail.trim()) return;
+    setIsSendingEmail(true);
+    try {
+      const lead = getSelectedLead();
+      const html = buildMarketingEmailHtml({
+        subject: generatedContent.subject || 'Message from TrendTial CRM',
+        body: generatedContent.body,
+        recipientName: (lead?.clients?.client_name ?? lead?.contact_person) ?? undefined,
+      });
+      await sendEmail({
+        to: recipientEmail.trim(),
+        subject: generatedContent.subject || 'Message from TrendTial CRM',
+        html,
+      });
+      showToast('success', `Email sent successfully to ${recipientEmail.trim()}!`);
+      setShowSendForm(false);
+      setRecipientEmail('');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to send email';
+      showToast('error', msg);
+    } finally {
+      setIsSendingEmail(false);
+    }
   };
 
   /**
@@ -630,11 +707,11 @@ const ContentStudio: React.FC<ContentStudioProps> = ({ leads }) => {
               </div>
 
               {/* Action Buttons */}
-              <div className="flex space-x-3">
+              <div className="grid grid-cols-2 gap-2">
                 <Button
                   onClick={handleCopy}
                   variant="outline"
-                  className={`flex-1 transition-all ${copied ? 'bg-green-50 border-green-300 text-green-700' : ''}`}
+                  className={`transition-all ${copied ? 'bg-green-50 border-green-300 text-green-700' : ''}`}
                 >
                   {copied ? (
                     <>
@@ -643,29 +720,94 @@ const ContentStudio: React.FC<ContentStudioProps> = ({ leads }) => {
                     </>
                   ) : (
                     <>
-                  <ClipboardDocumentIcon className="h-4 w-4 mr-2" />
-                  Copy
+                      <ClipboardDocumentIcon className="h-4 w-4 mr-2" />
+                      Copy
                     </>
                   )}
                 </Button>
+
                 <Button
                   onClick={handleSend}
                   variant="default"
-                  className="flex-1 bg-primary hover:bg-primary/90"
+                  className={`transition-all ${
+                    showSendForm && contentType === 'email'
+                      ? 'bg-indigo-600 hover:bg-indigo-700'
+                      : 'bg-primary hover:bg-primary/90'
+                  }`}
                 >
                   <PaperAirplaneIcon className="h-4 w-4 mr-2" />
-                  Send
+                  {showSendForm && contentType === 'email' ? 'Cancel Send' : 'Send Email'}
                 </Button>
+
+                {/* Save to Dashboard */}
+                <Button
+                  onClick={handleSaveToDashboard}
+                  variant="outline"
+                  className={`col-span-2 transition-all font-medium ${
+                    savedToDashboard
+                      ? 'bg-emerald-50 border-emerald-400 text-emerald-700'
+                      : 'border-violet-300 text-violet-700 hover:bg-violet-50'
+                  }`}
+                >
+                  {savedToDashboard ? (
+                    <>
+                      <CheckCircleIcon className="h-4 w-4 mr-2" />
+                      Saved to Dashboard!
+                    </>
+                  ) : (
+                    <>
+                      <BookmarkIcon className="h-4 w-4 mr-2" />
+                      Save Campaign to Dashboard
+                    </>
+                  )}
+                </Button>
+
                 <Button
                   onClick={handleGenerate}
                   variant="outline"
-                  className="flex-1"
+                  className="col-span-2"
                   disabled={isGenerating}
                 >
                   <ArrowPathIcon className={`h-4 w-4 mr-2 ${isGenerating ? 'animate-spin' : ''}`} />
                   Regenerate
                 </Button>
               </div>
+
+              {/* Inline send form — shown when Send is clicked on email content */}
+              {showSendForm && contentType === 'email' && (
+                <div className="mt-3 p-4 bg-indigo-50 border border-indigo-200 rounded-xl space-y-3">
+                  <p className="text-sm font-semibold text-indigo-800 flex items-center gap-1.5">
+                    <PaperAirplaneIcon className="h-4 w-4" />
+                    Send via Resend
+                  </p>
+                  <div className="flex gap-2">
+                    <input
+                      type="email"
+                      value={recipientEmail}
+                      onChange={e => setRecipientEmail(e.target.value)}
+                      placeholder="Recipient email address"
+                      className="flex-1 px-3 py-2 text-sm border border-indigo-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white"
+                    />
+                    <Button
+                      onClick={handleConfirmSend}
+                      disabled={isSendingEmail || !recipientEmail.trim()}
+                      className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 disabled:opacity-50"
+                    >
+                      {isSendingEmail ? (
+                        <ArrowPathIcon className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <>
+                          <PaperAirplaneIcon className="h-4 w-4 mr-1.5" />
+                          Send Email
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                  <p className="text-xs text-indigo-500">
+                    ⚠ Test mode uses <code>onboarding@resend.dev</code> — delivery only to your verified Resend address.
+                  </p>
+                </div>
+              )}
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center h-[400px] text-gray-400">

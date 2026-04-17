@@ -33,6 +33,7 @@ import uvicorn
 from orchestrator.core import get_orchestrator
 from agents.sales_agent.agent import SalesAgent
 from agents.marketing_agent.agent import MarketingAgent
+from agents.support_agent.agent import SupportAgent
 from input_streams.voice_stream import VoiceStream
 from utils.logger import get_logger
 from config import settings
@@ -98,8 +99,8 @@ async def startup_event():
             logger.info("✓ Sales Agent initialized")
         
         if settings.SUPPORT_AGENT_ENABLED:
-            # Placeholder for Husnain's support agent
-            logger.info("✗ Support Agent not yet implemented")
+            agents["support"] = SupportAgent()
+            logger.info("✓ Support Agent initialized")
         
         if settings.MARKETING_AGENT_ENABLED:
             # Marketing Agent - handles content generation, lead analysis, campaigns
@@ -186,7 +187,7 @@ async def process_message(request: MessageRequest):
         # Route to agent
         agent_response = orchestrator.route_to_agent(processed_message, agents)
         
-        if not agent_response.get("success"):
+        if not agent_response.get("success") and agent_response.get("error"):
             raise HTTPException(status_code=500, detail=agent_response.get("error"))
         
         return agent_response
@@ -343,6 +344,10 @@ async def reset_agent_session(agent_type: str, session_id: str):
 from routes.marketing import router as marketing_router
 app.include_router(marketing_router)
 
+# Import and include expanded Ollama-powered marketing hub routes
+from routes.marketing_hub import router as marketing_hub_router
+app.include_router(marketing_hub_router)
+
 
 # =============================================================================
 # SALES CALL ROUTES (Voice Pipeline Integration)
@@ -351,6 +356,20 @@ app.include_router(marketing_router)
 # Import and include sales call routes for AI voice calls
 from routes.sales_calls import router as sales_calls_router
 app.include_router(sales_calls_router)
+
+
+# =============================================================================
+# SUPPORT AGENT ROUTES (KB + Tickets)
+# =============================================================================
+
+try:
+    from agents.support_agent.kb_api import router as kb_router
+    from agents.support_agent.ticket_api import router as ticket_router
+    app.include_router(kb_router)
+    app.include_router(ticket_router)
+    logger.info("Support Agent routes registered: /api/kb and /api/tickets")
+except Exception as e:
+    logger.warning(f"Support Agent routes not loaded: {e}")
 
 
 def main():

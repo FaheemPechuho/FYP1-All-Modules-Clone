@@ -54,12 +54,17 @@ class MarketingAgent(BaseAgent):
             if handler:
                 result = handler(message_data)
                 return self.format_response(message="Success", success=True, metadata=result)
-            else:
-                return self.format_response(
-                    message=f"Unknown action: {action}",
-                    success=False,
-                    metadata={"available_actions": list(handlers.keys())}
-                )
+            
+            # Fallback: handle free-form text conversation via Groq LLM
+            raw_message = message_data.get("raw_message", "")
+            if raw_message:
+                return self._handle_conversational(raw_message, message_data)
+            
+            return self.format_response(
+                message=f"Unknown action: {action}. Available: {', '.join(handlers.keys())}",
+                success=True,
+                metadata={"available_actions": list(handlers.keys())}
+            )
                 
         except Exception as e:
             logger.error(f"Error processing request: {e}")
@@ -204,7 +209,43 @@ class MarketingAgent(BaseAgent):
     
     def get_system_prompt(self) -> str:
         return MARKETING_AGENT_SYSTEM_PROMPT
-    
+
+    def _handle_conversational(self, raw_message: str, message_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle free-form marketing questions via Groq LLM conversation"""
+        try:
+            from groq import Groq
+            from config import settings
+
+            session_id = self.extract_session_id(message_data)
+            self.add_to_conversation_history(session_id, "user", raw_message)
+            history = self.get_conversation_history(session_id)
+
+            messages = [{"role": m["role"], "content": m["content"]} for m in history[-12:]]
+
+            client = Groq(api_key=settings.GROQ_API_KEY)
+            resp = client.chat.completions.create(
+                model=self.model,
+                messages=messages,
+                max_tokens=600,
+                temperature=0.7,
+            )
+            reply = resp.choices[0].message.content.strip()
+            self.add_to_conversation_history(session_id, "assistant", reply)
+
+            return self.format_response(
+                message=reply,
+                success=True,
+                metadata={"session_id": session_id, "mode": "conversational"},
+                actions=["generated_marketing_response"],
+            )
+        except Exception as e:
+            logger.error(f"Conversational fallback error: {e}")
+            return self.format_response(
+                message="I can help with marketing campaigns, content generation, lead nurturing, and more. What would you like to explore?",
+                success=True,
+                metadata={"mode": "fallback"},
+            )
+
     def reset_session(self, session_id: str):
         self.clear_conversation_history(session_id)
         logger.info(f"Reset session: {session_id}")

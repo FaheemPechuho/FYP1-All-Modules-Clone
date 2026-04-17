@@ -561,6 +561,49 @@ async def suggest_test_ideas(request: SuggestTestIdeasRequest):
 
 
 # =============================================================================
+# EMAIL PROXY — calls Resend server-side to avoid browser CORS restrictions
+# =============================================================================
+
+class SendEmailRequest(BaseModel):
+    to: str
+    subject: str
+    html: str
+
+@app.post("/api/send-email")
+async def send_email_proxy(req: SendEmailRequest):
+    """Proxy Resend API call server-side so the browser API key is never exposed."""
+    import requests as _requests
+
+    api_key = settings.RESEND_API_KEY
+    if not api_key:
+        raise HTTPException(status_code=500, detail="RESEND_API_KEY is not configured on the server")
+
+    payload = {
+        "from": "onboarding@resend.dev",
+        "to": req.to,
+        "subject": req.subject,
+        "html": req.html,
+    }
+
+    try:
+        resp = _requests.post(
+            "https://api.resend.com/emails",
+            json=payload,
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+            },
+            timeout=15,
+        )
+        data = resp.json()
+        if not resp.ok:
+            raise HTTPException(status_code=resp.status_code, detail=data.get("message", "Resend API error"))
+        return {"id": data.get("id"), "message": "Email sent successfully"}
+    except _requests.RequestException as e:
+        raise HTTPException(status_code=502, detail=f"Failed to reach Resend API: {str(e)}")
+
+
+# =============================================================================
 # MAIN ENTRY POINT
 # =============================================================================
 

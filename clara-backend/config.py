@@ -8,8 +8,9 @@ from pydantic import Field
 from pydantic_settings import BaseSettings
 from dotenv import load_dotenv
 
-# Load environment variables
-load_dotenv()
+# Load environment variables — .env.local overrides .env (same as Vite convention)
+load_dotenv(".env")
+load_dotenv(".env.local", override=True)
 
 
 class Settings(BaseSettings):
@@ -32,6 +33,7 @@ class Settings(BaseSettings):
     GEMINI_API_KEY: str = Field(default="AIzaSyADeYgcwx3_wLr8zNxnQJIV4cMYxT-59CA")  # Google Gemini for marketing content
     CARTESIA_API_KEY: str = Field(default="")  # For TTS
     DEEPGRAM_API_KEY: str = Field(default="")  # Backup for STT/TTS
+    RESEND_API_KEY: str = Field(default="re_e2bEvcQt_HJAUKNzFBRywFL9UgY5aDNhP")  # Resend email service
     
     # ===== Supabase =====
     SUPABASE_URL: str = Field(default="")
@@ -91,8 +93,9 @@ class Settings(BaseSettings):
     MOCK_CRM_RESPONSES: bool = False
     
     class Config:
-        env_file = ".env"
+        env_file = (".env", ".env.local")  # .env.local wins (last file has highest priority)
         case_sensitive = True
+        extra = "ignore"
 
 
 # Global settings instance

@@ -55,52 +55,7 @@ interface ScheduledPost {
   };
 }
 
-// =============================================================================
-// DEMO DATA
-// =============================================================================
-
-const scheduledPosts: ScheduledPost[] = [
-  {
-    id: '1',
-    content: '🚀 Exciting news! We just launched our new feature that helps you automate your marketing workflows. Check it out! #MarketingAutomation #ProductLaunch',
-    platforms: ['facebook', 'twitter', 'linkedin'],
-    scheduledAt: '2024-12-11T10:00:00Z',
-    status: 'scheduled',
-    mediaType: 'image',
-  },
-  {
-    id: '2',
-    content: 'Behind the scenes at our office! 📸 Our team is working hard to bring you the best marketing tools. #TeamWork #StartupLife',
-    platforms: ['instagram', 'facebook'],
-    scheduledAt: '2024-12-11T14:00:00Z',
-    status: 'scheduled',
-    mediaType: 'image',
-  },
-  {
-    id: '3',
-    content: '5 Marketing Trends You Can\'t Ignore in 2025 📈 Our latest blog post breaks down what\'s coming next year. Link in bio!',
-    platforms: ['twitter', 'linkedin'],
-    scheduledAt: '2024-12-12T09:00:00Z',
-    status: 'scheduled',
-    mediaType: 'link',
-  },
-  {
-    id: '4',
-    content: 'Customer spotlight! 🌟 See how @AcmeCorp increased their conversion rate by 45% using our platform.',
-    platforms: ['facebook', 'linkedin', 'twitter'],
-    scheduledAt: '2024-12-10T15:00:00Z',
-    status: 'published',
-    engagement: { likes: 234, comments: 45, shares: 67 },
-  },
-  {
-    id: '5',
-    content: 'Quick tip Tuesday! 💡 Use A/B testing for your email subject lines to boost open rates by up to 30%.',
-    platforms: ['twitter', 'linkedin'],
-    scheduledAt: '2024-12-10T11:00:00Z',
-    status: 'published',
-    engagement: { likes: 189, comments: 23, shares: 45 },
-  },
-];
+const SOCIAL_POSTS_KEY = 'crm_social_posts';
 
 // =============================================================================
 // COMPONENT
@@ -108,10 +63,17 @@ const scheduledPosts: ScheduledPost[] = [
 
 const MarketingSocialScheduler: React.FC = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [posts, setPosts] = useState<ScheduledPost[]>(scheduledPosts);
+  const [posts, setPosts] = useState<ScheduledPost[]>(() => {
+    try { return JSON.parse(localStorage.getItem(SOCIAL_POSTS_KEY) || '[]'); }
+    catch { return []; }
+  });
   const [selectedPlatforms, setSelectedPlatforms] = useState<Platform[]>([]);
   const [filterStatus, setFilterStatus] = useState<PostStatus | 'all'>('all');
-  const [editingPost, setEditingPost] = useState<ScheduledPost | null>(null);
+
+  const savePosts = (updated: ScheduledPost[]) => {
+    setPosts(updated);
+    localStorage.setItem(SOCIAL_POSTS_KEY, JSON.stringify(updated));
+  };
 
   const getPlatformIcon = (platform: Platform) => {
     switch (platform) {
@@ -146,14 +108,14 @@ const MarketingSocialScheduler: React.FC = () => {
     );
   };
 
-  const filteredPosts = scheduledPosts.filter(post =>
+  const filteredPosts = posts.filter(post =>
     filterStatus === 'all' || post.status === filterStatus
   );
 
   const stats = {
-    scheduled: scheduledPosts.filter(p => p.status === 'scheduled').length,
-    published: scheduledPosts.filter(p => p.status === 'published').length,
-    totalEngagement: scheduledPosts.reduce((acc, p) => 
+    scheduled: posts.filter(p => p.status === 'scheduled').length,
+    published: posts.filter(p => p.status === 'published').length,
+    totalEngagement: posts.reduce((acc, p) =>
       acc + (p.engagement?.likes || 0) + (p.engagement?.comments || 0) + (p.engagement?.shares || 0), 0
     ),
   };
@@ -331,7 +293,11 @@ const MarketingSocialScheduler: React.FC = () => {
                   <PencilIcon className="h-4 w-4 mr-1" />
                   Edit
                 </Button>
-                <Button variant="outline" size="sm" className="text-red-500 hover:text-red-600 hover:bg-red-50">
+                <Button
+                  variant="outline" size="sm"
+                  className="text-red-500 hover:text-red-600 hover:bg-red-50"
+                  onClick={() => savePosts(posts.filter(p => p.id !== post.id))}
+                >
                   <TrashIcon className="h-4 w-4" />
                 </Button>
               </div>
@@ -345,7 +311,7 @@ const MarketingSocialScheduler: React.FC = () => {
         <SocialPostCreationModal
           onClose={() => setShowCreateModal(false)}
           onPostCreated={(post) => {
-            setPosts([post, ...posts]);
+            savePosts([post as ScheduledPost, ...posts]);
             setShowCreateModal(false);
           }}
         />

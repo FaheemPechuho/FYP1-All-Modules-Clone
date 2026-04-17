@@ -31,6 +31,7 @@ import {
   AdjustmentsHorizontalIcon,
 } from '@heroicons/react/24/outline';
 import WorkflowCreationModal from '../../components/marketing/WorkflowCreationModal';
+import { useLeadsQuery } from '../../hooks/queries/useLeadsQuery';
 
 // =============================================================================
 // TYPE DEFINITIONS
@@ -58,83 +59,7 @@ interface Workflow {
   createdAt: string;
 }
 
-// =============================================================================
-// DEMO DATA
-// =============================================================================
-
-const workflows: Workflow[] = [
-  {
-    id: '1',
-    name: 'Lead Nurturing Workflow',
-    description: 'Automatically nurture new leads with targeted content',
-    status: 'active',
-    trigger: 'New lead created',
-    steps: [
-      { id: '1', type: 'trigger', name: 'New Lead Created', config: { source: 'any' } },
-      { id: '2', type: 'delay', name: 'Wait 1 Day', config: { duration: 1, unit: 'days' } },
-      { id: '3', type: 'action', name: 'Send Welcome Email', config: { template: 'welcome' } },
-      { id: '4', type: 'condition', name: 'Email Opened?', config: { condition: 'opened' } },
-      { id: '5', type: 'action', name: 'Send Follow-up', config: { template: 'follow_up' } },
-    ],
-    totalContacts: 1245,
-    completedContacts: 892,
-    conversionRate: 18.5,
-    createdAt: '2024-10-15',
-  },
-  {
-    id: '2',
-    name: 'Cart Recovery Automation',
-    description: 'Win back abandoned carts with timely reminders',
-    status: 'active',
-    trigger: 'Cart abandoned',
-    steps: [
-      { id: '1', type: 'trigger', name: 'Cart Abandoned', config: { timeout: 30 } },
-      { id: '2', type: 'delay', name: 'Wait 1 Hour', config: { duration: 1, unit: 'hours' } },
-      { id: '3', type: 'action', name: 'Send Reminder Email', config: { template: 'cart_reminder' } },
-      { id: '4', type: 'delay', name: 'Wait 24 Hours', config: { duration: 24, unit: 'hours' } },
-      { id: '5', type: 'condition', name: 'Cart Still Abandoned?', config: { condition: 'abandoned' } },
-      { id: '6', type: 'action', name: 'Send Discount Offer', config: { template: 'discount' } },
-    ],
-    totalContacts: 567,
-    completedContacts: 234,
-    conversionRate: 28.4,
-    createdAt: '2024-11-01',
-  },
-  {
-    id: '3',
-    name: 'Customer Onboarding',
-    description: 'Guide new customers through product setup',
-    status: 'paused',
-    trigger: 'New purchase',
-    steps: [
-      { id: '1', type: 'trigger', name: 'New Purchase', config: { product: 'any' } },
-      { id: '2', type: 'action', name: 'Send Welcome Email', config: { template: 'welcome' } },
-      { id: '3', type: 'delay', name: 'Wait 2 Days', config: { duration: 2, unit: 'days' } },
-      { id: '4', type: 'action', name: 'Send Setup Guide', config: { template: 'setup' } },
-      { id: '5', type: 'action', name: 'Add Tag', config: { tag: 'onboarding_started' } },
-    ],
-    totalContacts: 890,
-    completedContacts: 756,
-    conversionRate: 92.1,
-    createdAt: '2024-09-20',
-  },
-];
-
-const availableTriggers = [
-  { id: 'new_lead', name: 'New Lead Created', icon: UserGroupIcon },
-  { id: 'cart_abandoned', name: 'Cart Abandoned', icon: ExclamationTriangleIcon },
-  { id: 'new_purchase', name: 'New Purchase', icon: CheckCircleIcon },
-  { id: 'tag_added', name: 'Tag Added', icon: TagIcon },
-  { id: 'form_submitted', name: 'Form Submitted', icon: FunnelIcon },
-];
-
-const availableActions = [
-  { id: 'send_email', name: 'Send Email', icon: EnvelopeIcon },
-  { id: 'add_tag', name: 'Add Tag', icon: TagIcon },
-  { id: 'update_field', name: 'Update Field', icon: AdjustmentsHorizontalIcon },
-  { id: 'notify_team', name: 'Notify Team', icon: UserGroupIcon },
-  { id: 'wait', name: 'Wait/Delay', icon: ClockIcon },
-];
+const WORKFLOWS_KEY = 'crm_automation_workflows';
 
 // =============================================================================
 // COMPONENT
@@ -142,7 +67,28 @@ const availableActions = [
 
 const MarketingAutomation: React.FC = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [selectedWorkflow, setSelectedWorkflow] = useState<Workflow | null>(null);
+  const [workflows, setWorkflows] = useState<Workflow[]>(() => {
+    try { return JSON.parse(localStorage.getItem(WORKFLOWS_KEY) || '[]'); }
+    catch { return []; }
+  });
+
+  const { data } = useLeadsQuery({ limit: 1000 });
+  const totalLeads = data?.leads?.length ?? 0;
+
+  const saveWorkflows = (updated: Workflow[]) => {
+    setWorkflows(updated);
+    localStorage.setItem(WORKFLOWS_KEY, JSON.stringify(updated));
+  };
+
+  const toggleStatus = (id: string) => {
+    saveWorkflows(workflows.map(w =>
+      w.id === id
+        ? { ...w, status: w.status === 'active' ? 'paused' : 'active' as WorkflowStatus }
+        : w
+    ));
+  };
+
+  const deleteWorkflow = (id: string) => saveWorkflows(workflows.filter(w => w.id !== id));
 
   const getStatusBadge = (status: WorkflowStatus) => {
     const styles = {
@@ -186,8 +132,10 @@ const MarketingAutomation: React.FC = () => {
   const stats = {
     total: workflows.length,
     active: workflows.filter(w => w.status === 'active').length,
-    totalContacts: workflows.reduce((acc, w) => acc + w.totalContacts, 0),
-    avgConversion: workflows.reduce((acc, w) => acc + w.conversionRate, 0) / workflows.length,
+    totalContacts: totalLeads,
+    avgConversion: workflows.length > 0
+      ? workflows.reduce((acc, w) => acc + w.conversionRate, 0) / workflows.length
+      : 0,
   };
 
   return (
@@ -268,10 +216,9 @@ const MarketingAutomation: React.FC = () => {
       {/* Workflows List */}
       <div className="space-y-4">
         {workflows.map((workflow) => (
-          <Card 
-            key={workflow.id} 
-            className="hover:shadow-lg transition-all duration-300 cursor-pointer"
-            onClick={() => setSelectedWorkflow(workflow)}
+          <Card
+            key={workflow.id}
+            className="hover:shadow-lg transition-all duration-300"
           >
             <CardContent className="p-6">
               <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
@@ -327,12 +274,21 @@ const MarketingAutomation: React.FC = () => {
                     <PencilIcon className="h-4 w-4 mr-1" />
                     Edit
                   </Button>
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     size="sm"
                     className={workflow.status === 'active' ? 'text-amber-600' : 'text-emerald-600'}
+                    onClick={() => toggleStatus(workflow.id)}
+                    title={workflow.status === 'active' ? 'Pause' : 'Activate'}
                   >
                     {workflow.status === 'active' ? <PauseIcon className="h-4 w-4" /> : <PlayIcon className="h-4 w-4" />}
+                  </Button>
+                  <Button
+                    variant="outline" size="sm"
+                    className="text-red-500 hover:text-red-600 hover:bg-red-50"
+                    onClick={() => deleteWorkflow(workflow.id)}
+                  >
+                    <TrashIcon className="h-4 w-4" />
                   </Button>
                 </div>
               </div>
@@ -346,7 +302,20 @@ const MarketingAutomation: React.FC = () => {
         <WorkflowCreationModal
           onClose={() => setShowCreateModal(false)}
           onWorkflowCreated={(workflow) => {
-            console.log('Workflow created:', workflow);
+            const wf = workflow as Workflow;
+            const entry: Workflow = {
+              id: wf.id || Date.now().toString(),
+              name: wf.name || 'New Workflow',
+              description: wf.description || '',
+              status: wf.status || 'draft',
+              trigger: wf.trigger || 'Manual',
+              steps: wf.steps || [],
+              totalContacts: totalLeads,
+              completedContacts: 0,
+              conversionRate: 0,
+              createdAt: new Date().toISOString().split('T')[0],
+            };
+            saveWorkflows([entry, ...workflows]);
             setShowCreateModal(false);
           }}
         />

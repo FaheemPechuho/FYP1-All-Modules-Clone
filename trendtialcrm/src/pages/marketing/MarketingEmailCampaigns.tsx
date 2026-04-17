@@ -7,7 +7,7 @@
  * @author Sheryar
  */
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import {
@@ -31,6 +31,8 @@ import {
   ArrowUpTrayIcon,
 } from '@heroicons/react/24/outline';
 import EmailCampaignCreationModal from '../../components/marketing/EmailCampaignCreationModal';
+import { useLeadsQuery } from '../../hooks/queries/useLeadsQuery';
+import { Lead } from '../../types';
 
 // =============================================================================
 // TYPE DEFINITIONS
@@ -56,113 +58,58 @@ interface EmailCampaign {
 }
 
 // =============================================================================
-// DEMO DATA
+// STORAGE KEY
 // =============================================================================
 
-const emailCampaigns: EmailCampaign[] = [
-  {
-    id: '1',
-    name: 'Holiday Season Sale',
-    subject: '🎄 Exclusive Holiday Deals Just for You!',
-    status: 'sent',
-    recipients: 15420,
-    sent: 15380,
-    opened: 4892,
-    clicked: 1247,
-    bounced: 40,
-    unsubscribed: 23,
-    sentAt: '2024-12-01T10:00:00Z',
-    createdAt: '2024-11-28T14:30:00Z',
-    template: 'promotional',
-  },
-  {
-    id: '2',
-    name: 'Product Update Newsletter',
-    subject: 'New Features You\'ll Love 🚀',
-    status: 'scheduled',
-    recipients: 8750,
-    sent: 0,
-    opened: 0,
-    clicked: 0,
-    bounced: 0,
-    unsubscribed: 0,
-    scheduledAt: '2024-12-15T09:00:00Z',
-    createdAt: '2024-12-08T11:20:00Z',
-    template: 'newsletter',
-  },
-  {
-    id: '3',
-    name: 'Re-engagement Campaign',
-    subject: 'We miss you! Here\'s 20% off',
-    status: 'sending',
-    recipients: 3200,
-    sent: 1845,
-    opened: 412,
-    clicked: 89,
-    bounced: 12,
-    unsubscribed: 5,
-    createdAt: '2024-12-10T08:00:00Z',
-    template: 'win-back',
-  },
-  {
-    id: '4',
-    name: 'Welcome Series - Day 1',
-    subject: 'Welcome to the family! 👋',
-    status: 'sent',
-    recipients: 2450,
-    sent: 2448,
-    opened: 1834,
-    clicked: 567,
-    bounced: 2,
-    unsubscribed: 3,
-    sentAt: '2024-12-05T00:00:00Z',
-    createdAt: '2024-11-20T16:45:00Z',
-    template: 'welcome',
-  },
-  {
-    id: '5',
-    name: 'Q4 Report to Stakeholders',
-    subject: 'Q4 2024 Performance Report',
-    status: 'draft',
-    recipients: 0,
-    sent: 0,
-    opened: 0,
-    clicked: 0,
-    bounced: 0,
-    unsubscribed: 0,
-    createdAt: '2024-12-09T13:15:00Z',
-    template: 'report',
-  },
-];
+const EMAIL_CAMPAIGNS_KEY = 'crm_email_campaigns';
 
 // =============================================================================
 // COMPONENT
 // =============================================================================
 
 const MarketingEmailCampaigns: React.FC = () => {
+  // Real leads for recipient pool count
+  const { data } = useLeadsQuery({ limit: 1000 });
+  const totalLeadContacts = (data?.leads ?? []).filter((l: Lead) => l.email).length;
+
+  // Campaigns persisted in localStorage
+  const [campaigns, setCampaigns] = useState<EmailCampaign[]>(() => {
+    try { return JSON.parse(localStorage.getItem(EMAIL_CAMPAIGNS_KEY) || '[]'); }
+    catch { return []; }
+  });
+
+  const saveCampaigns = useCallback((updated: EmailCampaign[]) => {
+    setCampaigns(updated);
+    localStorage.setItem(EMAIL_CAMPAIGNS_KEY, JSON.stringify(updated));
+  }, []);
+
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<CampaignStatus | 'all'>('all');
   const [showCreateModal, setShowCreateModal] = useState(false);
 
   const filteredCampaigns = useMemo(() => {
-    return emailCampaigns.filter((campaign) => {
+    return campaigns.filter((campaign) => {
       const matchesSearch = campaign.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         campaign.subject.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesStatus = statusFilter === 'all' || campaign.status === statusFilter;
       return matchesSearch && matchesStatus;
     });
-  }, [searchQuery, statusFilter]);
+  }, [campaigns, searchQuery, statusFilter]);
 
   const stats = useMemo(() => ({
-    total: emailCampaigns.length,
-    sent: emailCampaigns.filter(c => c.status === 'sent').length,
-    scheduled: emailCampaigns.filter(c => c.status === 'scheduled').length,
-    drafts: emailCampaigns.filter(c => c.status === 'draft').length,
-    totalSent: emailCampaigns.reduce((acc, c) => acc + c.sent, 0),
-    totalOpened: emailCampaigns.reduce((acc, c) => acc + c.opened, 0),
-    avgOpenRate: emailCampaigns.filter(c => c.sent > 0).reduce((acc, c) => acc + (c.opened / c.sent * 100), 0) / emailCampaigns.filter(c => c.sent > 0).length || 0,
-    avgClickRate: emailCampaigns.filter(c => c.opened > 0).reduce((acc, c) => acc + (c.clicked / c.opened * 100), 0) / emailCampaigns.filter(c => c.opened > 0).length || 0,
-  }), []);
+    total: campaigns.length,
+    sent: campaigns.filter(c => c.status === 'sent').length,
+    scheduled: campaigns.filter(c => c.status === 'scheduled').length,
+    drafts: campaigns.filter(c => c.status === 'draft').length,
+    totalSent: campaigns.reduce((acc, c) => acc + c.sent, 0),
+    totalOpened: campaigns.reduce((acc, c) => acc + c.opened, 0),
+    avgOpenRate: campaigns.filter(c => c.sent > 0).length > 0
+      ? campaigns.filter(c => c.sent > 0).reduce((acc, c) => acc + (c.opened / c.sent * 100), 0) / campaigns.filter(c => c.sent > 0).length
+      : 0,
+    avgClickRate: campaigns.filter(c => c.opened > 0).length > 0
+      ? campaigns.filter(c => c.opened > 0).reduce((acc, c) => acc + (c.clicked / c.opened * 100), 0) / campaigns.filter(c => c.opened > 0).length
+      : 0,
+  }), [campaigns]);
 
   const getStatusBadge = (status: CampaignStatus) => {
     const styles = {
@@ -201,7 +148,7 @@ const MarketingEmailCampaigns: React.FC = () => {
             Email Campaigns
           </h1>
           <p className="mt-1 text-gray-500">
-            Create and manage your email marketing campaigns
+            {campaigns.length} campaigns • {totalLeadContacts.toLocaleString()} contacts available
           </p>
         </div>
         <div className="flex gap-3">
@@ -373,7 +320,10 @@ const MarketingEmailCampaigns: React.FC = () => {
                           <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
                             <DocumentDuplicateIcon className="h-4 w-4" />
                           </Button>
-                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-red-500 hover:text-red-600 hover:bg-red-50">
+                          <Button
+                            variant="ghost" size="sm" className="h-8 w-8 p-0 text-red-500 hover:text-red-600 hover:bg-red-50"
+                            onClick={() => saveCampaigns(campaigns.filter(c => c.id !== campaign.id))}
+                          >
                             <TrashIcon className="h-4 w-4" />
                           </Button>
                         </div>
@@ -405,9 +355,18 @@ const MarketingEmailCampaigns: React.FC = () => {
       {showCreateModal && (
         <EmailCampaignCreationModal
           onClose={() => setShowCreateModal(false)}
-          onCampaignCreated={(campaign) => {
-            // In a real app, this would add to the campaigns list
-            console.log('Campaign created:', campaign);
+          onCampaignCreated={(newCampaign) => {
+            const entry: EmailCampaign = {
+              id: Date.now().toString(),
+              name: (newCampaign as any).name || 'New Campaign',
+              subject: (newCampaign as any).subject || '',
+              status: 'draft',
+              recipients: totalLeadContacts,
+              sent: 0, opened: 0, clicked: 0, bounced: 0, unsubscribed: 0,
+              createdAt: new Date().toISOString(),
+              template: (newCampaign as any).template || 'custom',
+            };
+            saveCampaigns([...campaigns, entry]);
             setShowCreateModal(false);
           }}
         />

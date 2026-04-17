@@ -139,7 +139,7 @@ class SalesAgent(BaseAgent):
             crm_updated = False
             call_id = None
             
-            if self._should_update_crm(qualification_result, score_breakdown):
+            if self._should_update_crm(qualification_result, score_breakdown, self.lead_data.get(session_id, {})):
                 crm_lead = self.crm_connector.create_or_update_lead(
                     lead_info=self.lead_data[session_id],
                     qualification_result=qualification_result,
@@ -318,15 +318,18 @@ class SalesAgent(BaseAgent):
     def _should_update_crm(
         self,
         qualification_result: Dict[str, Any],
-        score_breakdown: Dict[str, Any]
+        score_breakdown: Dict[str, Any],
+        accumulated_lead_data: Dict[str, Any] = None
     ) -> bool:
         """
         Determine if CRM should be updated
         
         IMPORTANT: Only create leads when we have minimum required information!
         This prevents creating incomplete/null records in the database.
+        Uses accumulated session lead_data so multi-turn conversations trigger CRM updates.
         """
-        extracted_info = qualification_result.get("extracted_info", {})
+        # Merge current extraction with accumulated session data (accumulated takes priority for existing fields)
+        extracted_info = {**(accumulated_lead_data or {}), **qualification_result.get("extracted_info", {})}
         
         # Check for contact information (email or phone is required)
         has_email = bool(extracted_info.get("email"))

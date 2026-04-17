@@ -6,7 +6,7 @@
  * @author Sheryar
  */
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import {
@@ -20,38 +20,21 @@ import {
   CalendarDaysIcon,
   ArrowPathIcon,
   DocumentArrowDownIcon,
+  CheckCircleIcon,
+  ExclamationTriangleIcon,
+  LightBulbIcon,
 } from '@heroicons/react/24/outline';
+import { useLeadsQuery } from '../../hooks/queries/useLeadsQuery';
+import { useMarketingMetrics } from '../../hooks/useMarketingMetrics';
+import { Lead } from '../../types';
 
-// =============================================================================
-// DEMO DATA
-// =============================================================================
+const CHANNEL_ICONS: Record<string, string> = {
+  'Facebook Ads': '📘', 'Google Ads': '🔍', 'LinkedIn': '💼',
+  'Email Marketing': '📧', 'TikTok': '🎵', 'Twitter / X': '🐦',
+  'Instagram': '📸', 'Referral': '🤝', 'Organic Search': '🌱',
+  'Direct': '🎯', 'WhatsApp': '💬', 'Cold Outreach': '📞', 'SMS': '💬',
+};
 
-const channelPerformance = [
-  { channel: 'Email Marketing', leads: 2450, conversions: 456, revenue: 125000, cpa: 8.50, roi: 425 },
-  { channel: 'Paid Search', leads: 1890, conversions: 312, revenue: 98000, cpa: 24.80, roi: 285 },
-  { channel: 'Social Media', leads: 3240, conversions: 289, revenue: 67000, cpa: 12.40, roi: 180 },
-  { channel: 'Content Marketing', leads: 1560, conversions: 234, revenue: 89000, cpa: 5.20, roi: 520 },
-  { channel: 'Referral', leads: 890, conversions: 178, revenue: 56000, cpa: 0, roi: 1200 },
-  { channel: 'Direct', leads: 1240, conversions: 198, revenue: 72000, cpa: 0, roi: 890 },
-];
-
-const funnelData = [
-  { stage: 'Visitors', count: 45600, conversion: 100 },
-  { stage: 'Leads', count: 11270, conversion: 24.7 },
-  { stage: 'MQLs', count: 3892, conversion: 34.5 },
-  { stage: 'SQLs', count: 1456, conversion: 37.4 },
-  { stage: 'Opportunities', count: 567, conversion: 38.9 },
-  { stage: 'Customers', count: 234, conversion: 41.3 },
-];
-
-const monthlyTrend = [
-  { month: 'Jul', leads: 2100, revenue: 78000 },
-  { month: 'Aug', leads: 2340, revenue: 89000 },
-  { month: 'Sep', leads: 2560, revenue: 102000 },
-  { month: 'Oct', leads: 2890, revenue: 118000 },
-  { month: 'Nov', leads: 3120, revenue: 134000 },
-  { month: 'Dec', leads: 3450, revenue: 156000 },
-];
 
 // =============================================================================
 // COMPONENT
@@ -59,11 +42,54 @@ const monthlyTrend = [
 
 const MarketingAnalytics: React.FC = () => {
   const [timeRange, setTimeRange] = useState<'7d' | '30d' | '90d' | '12m'>('30d');
+  const { data, isLoading } = useLeadsQuery({ limit: 1000 });
+  const leads = (data?.leads ?? []) as Lead[];
+  const { campaigns, kpis, insights } = useMarketingMetrics(leads);
 
-  const totalLeads = channelPerformance.reduce((acc, c) => acc + c.leads, 0);
-  const totalConversions = channelPerformance.reduce((acc, c) => acc + c.conversions, 0);
-  const totalRevenue = channelPerformance.reduce((acc, c) => acc + c.revenue, 0);
-  const avgROI = channelPerformance.reduce((acc, c) => acc + c.roi, 0) / channelPerformance.length;
+  // Conversion funnel derived from real status_bucket values
+  const funnelData = useMemo(() => {
+    const total = leads.length;
+    if (total === 0) return [];
+    const inPipeline = leads.filter(l => l.status_bucket).length;
+    const qualified  = leads.filter(l => {
+      const s = (l.status_bucket ?? '').toLowerCase();
+      return s && !['new', 'p5', 'cold', 'unqualified', ''].some(x => s.includes(x));
+    }).length;
+    const advanced = leads.filter(l => {
+      const s = (l.status_bucket ?? '').toLowerCase();
+      return ['p1', 'p2', 'proposal', 'negotiation', 'opportunity', 'hot'].some(x => s.includes(x));
+    }).length;
+    return [
+      { stage: 'Total Leads',    count: total,       widthPct: 100 },
+      { stage: 'In Pipeline',     count: inPipeline,  widthPct: Math.round((inPipeline / total) * 100) },
+      { stage: 'Qualified',       count: qualified,   widthPct: Math.round((qualified  / total) * 100) },
+      { stage: 'Advanced Stage',  count: advanced,    widthPct: Math.round((advanced   / total) * 100) },
+      { stage: 'Converted / Won', count: kpis.totalClosedWon, widthPct: Math.round((kpis.totalClosedWon / total) * 100) },
+    ];
+  }, [leads, kpis]);
+
+  // Last 6 months lead volume + pipeline value
+  const monthlyTrend = useMemo(() => {
+    const now = new Date();
+    return Array.from({ length: 6 }, (_, i) => {
+      const date = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1);
+      const ym   = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      const ml   = leads.filter(l => l.created_at?.startsWith(ym));
+      return {
+        month:   date.toLocaleString('default', { month: 'short' }),
+        leads:   ml.length,
+        revenue: ml.reduce((s, l) => s + (l.deal_value ?? 0), 0),
+      };
+    });
+  }, [leads]);
+
+  const maxBarLeads = Math.max(...monthlyTrend.map(m => m.leads), 1);
+
+  const insightIcon = (type: 'opportunity' | 'warning' | 'success') => {
+    if (type === 'opportunity') return <LightBulbIcon className="h-4 w-4 text-blue-400 flex-shrink-0 mt-0.5" />;
+    if (type === 'warning')     return <ExclamationTriangleIcon className="h-4 w-4 text-amber-400 flex-shrink-0 mt-0.5" />;
+    return <CheckCircleIcon className="h-4 w-4 text-emerald-400 flex-shrink-0 mt-0.5" />;
+  };
 
   return (
     <div className="space-y-6">
@@ -99,197 +125,195 @@ const MarketingAnalytics: React.FC = () => {
       </div>
 
       {/* KPI Cards */}
+      {/* KPI Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card className="bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-100">
-          <CardContent className="pt-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-blue-600 font-medium">Total Leads</p>
-                <p className="text-2xl font-bold text-blue-700">{totalLeads.toLocaleString()}</p>
-                <p className="text-xs text-emerald-600 flex items-center gap-1 mt-1">
-                  <ArrowTrendingUpIcon className="h-3 w-3" /> +12.5%
-                </p>
+        {[
+          { label: 'Total Leads',    value: kpis.totalLeads.toLocaleString(),                        change: kpis.leadsGrowth,  icon: <UserGroupIcon className="h-8 w-8 text-blue-400" />,   gradient: 'from-blue-50 to-indigo-50 border-blue-100',     text: 'text-blue-700',   sub: 'text-blue-600' },
+          { label: 'Conversions',    value: kpis.totalClosedWon.toLocaleString(),                    change: 0,                 icon: <FunnelIcon className="h-8 w-8 text-emerald-400" />,  gradient: 'from-emerald-50 to-teal-50 border-emerald-100', text: 'text-emerald-700', sub: 'text-emerald-600' },
+          { label: 'Pipeline Value', value: `$${(kpis.totalPipelineValue / 1000).toFixed(0)}K`,     change: kpis.valueGrowth,  icon: <CurrencyDollarIcon className="h-8 w-8 text-violet-400" />, gradient: 'from-violet-50 to-purple-50 border-violet-100', text: 'text-violet-700', sub: 'text-violet-600' },
+          { label: 'Avg Conv. Rate', value: `${kpis.avgConversionRate}%`,                           change: 0,                 icon: <ChartBarIcon className="h-8 w-8 text-amber-400" />,   gradient: 'from-amber-50 to-orange-50 border-amber-100',   text: 'text-amber-700',  sub: 'text-amber-600' },
+        ].map(c => (
+          <Card key={c.label} className={`bg-gradient-to-br ${c.gradient}`}>
+            <CardContent className="pt-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className={`text-sm font-medium ${c.sub}`}>{c.label}</p>
+                  <p className={`text-2xl font-bold ${c.text}`}>{c.value}</p>
+                  {c.change !== 0 && (
+                    <p className={`text-xs flex items-center gap-1 mt-1 ${c.change >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                      {c.change >= 0 ? <ArrowTrendingUpIcon className="h-3 w-3" /> : <ArrowTrendingDownIcon className="h-3 w-3" />}
+                      {c.change >= 0 ? '+' : ''}{c.change}% vs last month
+                    </p>
+                  )}
+                </div>
+                {c.icon}
               </div>
-              <UserGroupIcon className="h-8 w-8 text-blue-400" />
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card className="bg-gradient-to-br from-emerald-50 to-teal-50 border-emerald-100">
-          <CardContent className="pt-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-emerald-600 font-medium">Conversions</p>
-                <p className="text-2xl font-bold text-emerald-700">{totalConversions.toLocaleString()}</p>
-                <p className="text-xs text-emerald-600 flex items-center gap-1 mt-1">
-                  <ArrowTrendingUpIcon className="h-3 w-3" /> +8.3%
-                </p>
-              </div>
-              <FunnelIcon className="h-8 w-8 text-emerald-400" />
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card className="bg-gradient-to-br from-violet-50 to-purple-50 border-violet-100">
-          <CardContent className="pt-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-violet-600 font-medium">Revenue</p>
-                <p className="text-2xl font-bold text-violet-700">${(totalRevenue / 1000).toFixed(0)}K</p>
-                <p className="text-xs text-emerald-600 flex items-center gap-1 mt-1">
-                  <ArrowTrendingUpIcon className="h-3 w-3" /> +18.7%
-                </p>
-              </div>
-              <CurrencyDollarIcon className="h-8 w-8 text-violet-400" />
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card className="bg-gradient-to-br from-amber-50 to-orange-50 border-amber-100">
-          <CardContent className="pt-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-amber-600 font-medium">Avg ROI</p>
-                <p className="text-2xl font-bold text-amber-700">{avgROI.toFixed(0)}%</p>
-                <p className="text-xs text-emerald-600 flex items-center gap-1 mt-1">
-                  <ArrowTrendingUpIcon className="h-3 w-3" /> +5.2%
-                </p>
-              </div>
-              <ChartBarIcon className="h-8 w-8 text-amber-400" />
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Channel Attribution */}
+        {/* Channel Attribution — REAL */}
         <div className="lg:col-span-2">
           <Card>
             <CardHeader className="border-b">
-              <CardTitle>Channel Attribution</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                Channel Attribution
+                {isLoading && <ArrowPathIcon className="h-4 w-4 animate-spin text-gray-400" />}
+              </CardTitle>
             </CardHeader>
             <CardContent className="p-0">
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="text-left py-4 px-4 font-medium text-gray-600">Channel</th>
-                      <th className="text-left py-4 px-4 font-medium text-gray-600">Leads</th>
-                      <th className="text-left py-4 px-4 font-medium text-gray-600">Conversions</th>
-                      <th className="text-left py-4 px-4 font-medium text-gray-600">Revenue</th>
-                      <th className="text-left py-4 px-4 font-medium text-gray-600">CPA</th>
-                      <th className="text-left py-4 px-4 font-medium text-gray-600">ROI</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y">
-                    {channelPerformance.map((channel) => (
-                      <tr key={channel.channel} className="hover:bg-gray-50">
-                        <td className="py-4 px-4 font-medium">{channel.channel}</td>
-                        <td className="py-4 px-4">{channel.leads.toLocaleString()}</td>
-                        <td className="py-4 px-4">{channel.conversions}</td>
-                        <td className="py-4 px-4">${channel.revenue.toLocaleString()}</td>
-                        <td className="py-4 px-4">{channel.cpa > 0 ? `$${channel.cpa.toFixed(2)}` : 'N/A'}</td>
-                        <td className="py-4 px-4">
-                          <span className={`font-bold ${channel.roi >= 300 ? 'text-emerald-600' : 'text-amber-600'}`}>
-                            {channel.roi}%
-                          </span>
-                        </td>
+              {campaigns.length === 0 && !isLoading ? (
+                <div className="text-center py-12 text-gray-400">
+                  <ChartBarIcon className="h-12 w-12 mx-auto mb-3 text-gray-200" />
+                  <p className="font-medium text-gray-500">No channel data yet</p>
+                  <p className="text-sm mt-1">Add leads with a <code className="bg-gray-100 px-1 rounded text-xs">lead_source</code> field to see attribution</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="text-left py-3 px-4 font-medium text-gray-600">Channel</th>
+                        <th className="text-left py-3 px-4 font-medium text-gray-600">Leads</th>
+                        <th className="text-left py-3 px-4 font-medium text-gray-600">Converted</th>
+                        <th className="text-left py-3 px-4 font-medium text-gray-600">Pipeline Value</th>
+                        <th className="text-left py-3 px-4 font-medium text-gray-600">Conv. Rate</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody className="divide-y">
+                      {campaigns.map(c => (
+                        <tr key={c.id} className="hover:bg-gray-50 transition-colors">
+                          <td className="py-3 px-4">
+                            <div className="flex items-center gap-2">
+                              <span>{CHANNEL_ICONS[c.channel] ?? '📊'}</span>
+                              <span className="font-medium text-gray-900">{c.channel}</span>
+                            </div>
+                          </td>
+                          <td className="py-3 px-4 font-medium">{c.total_leads.toLocaleString()}</td>
+                          <td className="py-3 px-4">{c.closed_won}</td>
+                          <td className="py-3 px-4">{c.total_value > 0 ? `$${c.total_value.toLocaleString()}` : '—'}</td>
+                          <td className="py-3 px-4">
+                            <span className={`font-bold ${
+                              c.conversion_rate >= 20 ? 'text-emerald-600'
+                              : c.conversion_rate >= 10 ? 'text-amber-600'
+                              : 'text-gray-500'
+                            }`}>
+                              {c.conversion_rate}%
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
 
-        {/* Conversion Funnel */}
+        {/* Conversion Funnel — REAL */}
         <Card>
           <CardHeader className="border-b">
             <CardTitle className="text-lg">Conversion Funnel</CardTitle>
           </CardHeader>
           <CardContent className="p-4">
-            <div className="space-y-3">
-              {funnelData.map((stage, index) => {
-                const width = 100 - (index * 15);
-                return (
+            {funnelData.length === 0 ? (
+              <div className="text-center py-8">
+                <FunnelIcon className="h-10 w-10 mx-auto mb-2 text-gray-200" />
+                <p className="text-sm text-gray-400">No leads data yet</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {funnelData.map(stage => (
                   <div key={stage.stage}>
                     <div className="flex justify-between text-sm mb-1">
                       <span className="font-medium text-gray-700">{stage.stage}</span>
                       <span className="text-gray-500">{stage.count.toLocaleString()}</span>
                     </div>
-                    <div className="relative">
-                      <div 
-                        className="h-10 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-lg flex items-center justify-center transition-all"
-                        style={{ width: `${width}%` }}
+                    <div className="h-9 bg-gray-100 rounded-lg overflow-hidden">
+                      <div
+                        className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-lg flex items-center justify-center transition-all duration-500"
+                        style={{ width: `${Math.max(stage.widthPct, 4)}%` }}
                       >
-                        <span className="text-white text-xs font-medium">
-                          {index > 0 ? `${stage.conversion}%` : ''}
-                        </span>
+                        {stage.widthPct > 12 && (
+                          <span className="text-white text-xs font-medium">{stage.widthPct}%</span>
+                        )}
                       </div>
                     </div>
                   </div>
-                );
-              })}
-            </div>
-            <div className="mt-6 p-4 bg-emerald-50 rounded-xl">
-              <div className="flex items-center gap-2 mb-2">
-                <SparklesIcon className="h-5 w-5 text-emerald-600" />
-                <span className="font-medium text-emerald-800">Overall Conversion</span>
+                ))}
               </div>
-              <p className="text-3xl font-bold text-emerald-700">
-                {((234 / 45600) * 100).toFixed(2)}%
-              </p>
-              <p className="text-sm text-emerald-600 mt-1">
-                Visitor to Customer
-              </p>
-            </div>
+            )}
+            {kpis.totalLeads > 0 && (
+              <div className="mt-5 p-4 bg-emerald-50 rounded-xl">
+                <div className="flex items-center gap-2 mb-1">
+                  <SparklesIcon className="h-5 w-5 text-emerald-600" />
+                  <span className="font-medium text-emerald-800">Overall Conversion</span>
+                </div>
+                <p className="text-3xl font-bold text-emerald-700">
+                  {((kpis.totalClosedWon / kpis.totalLeads) * 100).toFixed(2)}%
+                </p>
+                <p className="text-sm text-emerald-600 mt-1">Lead to Customer</p>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
 
-      {/* Monthly Trend */}
+      {/* Monthly Trend — REAL */}
       <Card>
         <CardHeader className="border-b">
-          <CardTitle>Monthly Performance Trend</CardTitle>
+          <CardTitle>Monthly Lead Volume &amp; Pipeline (Last 6 Months)</CardTitle>
         </CardHeader>
         <CardContent className="p-6">
-          <div className="grid grid-cols-6 gap-4">
-            {monthlyTrend.map((month) => (
-              <div key={month.month} className="text-center">
-                <div className="mb-3">
-                  <div 
-                    className="bg-gradient-to-t from-indigo-500 to-purple-400 rounded-lg mx-auto transition-all hover:from-indigo-600 hover:to-purple-500"
-                    style={{ 
-                      height: `${(month.leads / 4000) * 120}px`,
-                      width: '40px'
-                    }}
-                  />
+          {monthlyTrend.every(m => m.leads === 0) ? (
+            <div className="text-center py-8">
+              <CalendarDaysIcon className="h-10 w-10 mx-auto mb-2 text-gray-200" />
+              <p className="text-sm text-gray-400">No historical data yet</p>
+            </div>
+          ) : (
+            <div className="flex items-end gap-3 justify-around" style={{ height: '160px' }}>
+              {monthlyTrend.map(month => (
+                <div key={month.month} className="flex-1 flex flex-col items-center gap-1">
+                  <p className="text-xs font-semibold text-emerald-600 mb-1">${(month.revenue / 1000).toFixed(0)}K</p>
+                  <div className="w-full flex justify-center flex-1 items-end">
+                    <div
+                      className="bg-gradient-to-t from-indigo-500 to-purple-400 rounded-t-lg w-3/4 min-h-1 transition-all hover:from-indigo-600 hover:to-purple-500"
+                      style={{ height: `${Math.max((month.leads / maxBarLeads) * 100, 4)}%` }}
+                    />
+                  </div>
+                  <p className="text-xs font-medium text-gray-700 mt-1">{month.month}</p>
+                  <p className="text-xs text-gray-500">{month.leads}</p>
                 </div>
-                <p className="font-medium text-gray-900">{month.month}</p>
-                <p className="text-sm text-gray-500">{month.leads} leads</p>
-                <p className="text-xs text-emerald-600">${(month.revenue / 1000).toFixed(0)}K</p>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
 
-      {/* AI Insights */}
+      {/* AI Insights — REAL */}
       <Card className="bg-gradient-to-r from-gray-900 to-gray-800">
         <CardContent className="py-6">
           <div className="flex items-start gap-4">
-            <div className="p-3 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl">
+            <div className="p-3 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex-shrink-0">
               <SparklesIcon className="h-6 w-6 text-white" />
             </div>
             <div className="flex-1">
-              <h3 className="text-lg font-bold text-white mb-2">AI-Generated Insights</h3>
-              <ul className="space-y-2 text-gray-300 text-sm">
-                <li>• <strong className="text-white">Content Marketing</strong> shows the highest ROI (520%) - consider increasing budget allocation</li>
-                <li>• <strong className="text-white">Email</strong> conversion rate improved by 15% after implementing personalization</li>
-                <li>• <strong className="text-white">Social Media</strong> CPL decreased by 22% with video content - recommend more video ads</li>
-                <li>• <strong className="text-white">Opportunity:</strong> Referral channel has unlimited ROI potential - implement referral program</li>
-              </ul>
+              <h3 className="text-lg font-bold text-white mb-3">AI-Powered Insights</h3>
+              {insights.length === 0 ? (
+                <p className="text-gray-400 text-sm">Add leads with source attribution to unlock real-time insights.</p>
+              ) : (
+                <ul className="space-y-2.5">
+                  {insights.slice(0, 4).map(ins => (
+                    <li key={ins.id} className="flex items-start gap-2 text-sm text-gray-300">
+                      {insightIcon(ins.type)}
+                      <span><strong className="text-white">{ins.title}:</strong> {ins.description}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
           </div>
         </CardContent>

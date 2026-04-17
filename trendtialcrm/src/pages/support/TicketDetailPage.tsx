@@ -1,7 +1,9 @@
 // src/pages/support/TicketDetailPage.tsx
-import React, { useState } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useTicketByIdQuery, useTicketMessagesQuery, useSendTicketMessageMutation, useUpdateTicketMutation, useCannedResponsesQuery, useAISuggestResponseMutation } from '../../hooks/queries/useSupportQuery';
+import { useSpeechRecognition } from '../../hooks/useSpeechRecognition';
+import { sendEmail, buildTicketEmailHtml } from '../../lib/emailService';
 import { TicketStatus, TicketPriority, TicketMessage, CannedResponse } from '../../types/support';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
@@ -26,6 +28,7 @@ import {
   HandThumbUpIcon,
   ChatBubbleLeftRightIcon,
   MicrophoneIcon,
+  StopIcon,
   VideoCameraIcon,
 } from '@heroicons/react/24/outline';
 import { formatDistanceToNow, format } from 'date-fns';
@@ -175,6 +178,55 @@ const TicketDetailPage: React.FC = () => {
   const aiSuggestMutation = useAISuggestResponseMutation();
 
   const [replyContent, setReplyContent] = useState('');
+  const replyTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const [isSendingEmail, setIsSendingEmail] = useState(false);
+  const [emailToast, setEmailToast] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
+
+  const showEmailToast = (type: 'success' | 'error', msg: string) => {
+    setEmailToast({ type, msg });
+    setTimeout(() => setEmailToast(null), 4000);
+  };
+
+  const handleSendTicketEmail = async () => {
+    if (!ticket) return;
+    setIsSendingEmail(true);
+    try {
+      const html = buildTicketEmailHtml({
+        ticketNumber: ticket.ticket_number,
+        subject: ticket.subject,
+        status: ticket.status,
+        priority: ticket.priority,
+        customerName: ticket.customer_name,
+        description: ticket.description,
+        category: ticket.category,
+        agentReply: replyContent.trim() || undefined,
+        createdAt: ticket.created_at,
+      });
+      await sendEmail({
+        to: ticket.customer_email,
+        subject: `[${ticket.ticket_number}] ${ticket.subject}`,
+        html,
+      });
+      showEmailToast('success', `Ticket summary sent to ${ticket.customer_email}`);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to send email';
+      showEmailToast('error', msg);
+    } finally {
+      setIsSendingEmail(false);
+    }
+  };
+
+  const handleTranscript = useCallback((text: string) => {
+    setReplyContent(prev => (prev ? `${prev} ${text}` : text));
+    setTimeout(() => replyTextareaRef.current?.focus(), 50);
+  }, []);
+
+  const { isListening, isSupported, startListening, stopListening } = useSpeechRecognition({
+    onTranscript: handleTranscript,
+    lang: 'en-US',
+  });
+
+  const toggleListening = () => (isListening ? stopListening() : startListening());
   const [showCannedResponses, setShowCannedResponses] = useState(false);
   const [showAISuggestion, setShowAISuggestion] = useState(false);
 
@@ -204,7 +256,7 @@ const TicketDetailPage: React.FC = () => {
     setShowAISuggestion(true);
     try {
       const result = await aiSuggestMutation.mutateAsync(id);
-      setReplyContent(result.suggestion || ticket?.ai_suggested_response || '');
+      setReplyContent(result.answer || ticket?.ai_suggested_response || '');
     } catch {
       // Use fallback suggestion
       setReplyContent(ticket?.ai_suggested_response || 'Thank you for reaching out. Let me help you with this issue...');
@@ -276,13 +328,33 @@ const TicketDetailPage: React.FC = () => {
           </div>
         </div>
         <div className="flex gap-2">
+          {/* Email toast inline */}
+          {emailToast && (
+            <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium border ${
+              emailToast.type === 'success'
+                ? 'bg-green-50 text-green-700 border-green-200'
+                : 'bg-red-50 text-red-700 border-red-200'
+            }`}>
+              {emailToast.type === 'success'
+                ? <CheckCircleIcon className="h-4 w-4" />
+                : <ExclamationTriangleIcon className="h-4 w-4" />}
+              {emailToast.msg}
+            </div>
+          )}
           <Button variant="outline" size="sm">
             <PhoneIcon className="h-4 w-4 mr-2" />
             Call
           </Button>
-          <Button variant="outline" size="sm">
-            <EnvelopeIcon className="h-4 w-4 mr-2" />
-            Email
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleSendTicketEmail}
+            disabled={isSendingEmail}
+          >
+            {isSendingEmail
+              ? <ArrowPathIcon className="h-4 w-4 mr-2 animate-spin" />
+              : <EnvelopeIcon className="h-4 w-4 mr-2" />}
+            {isSendingEmail ? 'Sending...' : 'Send Email'}
           </Button>
           <Button variant="outline" size="sm">
             <EllipsisVerticalIcon className="h-4 w-4" />
@@ -372,19 +444,50 @@ const TicketDetailPage: React.FC = () => {
 
               {/* Text Area */}
               <textarea
+                ref={replyTextareaRef}
                 value={replyContent}
                 onChange={(e) => setReplyContent(e.target.value)}
-                placeholder="Type your reply..."
+                placeholder={isListening ? 'Listening… speak your reply' : 'Type your reply...'}
                 rows={4}
-                className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary resize-none"
+                className={`w-full p-3 border rounded-lg focus:ring-2 resize-none transition-all ${
+                  isListening
+                    ? 'border-red-400 ring-2 ring-red-200 focus:ring-red-300 focus:outline-none'
+                    : 'focus:ring-primary/20 focus:border-primary'
+                }`}
               />
 
               {/* Send Actions */}
               <div className="flex items-center justify-between mt-3">
                 <div className="flex items-center gap-2">
-                  <Button variant="ghost" size="sm" title="Voice Message">
-                    <MicrophoneIcon className="h-4 w-4" />
-                  </Button>
+                  {/* Mic / STT Button */}
+                  <div
+                    title={!isSupported ? 'Speech input requires Chrome or Edge' : isListening ? 'Stop listening' : 'Click to dictate your reply'}
+                  >
+                    <button
+                      type="button"
+                      onClick={toggleListening}
+                      disabled={!isSupported}
+                      className={`flex items-center justify-center gap-1.5 h-9 px-2.5 rounded-lg border-2 transition-all duration-200 ${
+                        isListening
+                          ? 'bg-red-50 border-red-400 text-red-600 hover:bg-red-100'
+                          : 'bg-gray-50 border-gray-200 text-gray-500 hover:bg-gray-100'
+                      } disabled:opacity-40 disabled:cursor-not-allowed`}
+                      aria-label={isListening ? 'Stop voice input' : 'Start voice input'}
+                    >
+                      {isListening ? (
+                        <>
+                          <span className="flex items-center gap-[2px] h-4">
+                            {[...Array(5)].map((_, i) => (
+                              <span key={i} className="stt-bar inline-block w-[3px] rounded-full bg-red-500" style={{ height: '100%', transformOrigin: 'center bottom' }} />
+                            ))}
+                          </span>
+                          <StopIcon className="h-3.5 w-3.5 flex-shrink-0" />
+                        </>
+                      ) : (
+                        <MicrophoneIcon className="h-4 w-4" />
+                      )}
+                    </button>
+                  </div>
                   <Button variant="ghost" size="sm" title="Video Call">
                     <VideoCameraIcon className="h-4 w-4" />
                   </Button>

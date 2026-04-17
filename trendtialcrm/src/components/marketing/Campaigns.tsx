@@ -17,12 +17,11 @@
  * @author Sheryar
  */
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
-import { 
-  PlusIcon, 
-  ArrowPathIcon,
+import {
+  PlusIcon,
   ArrowUpIcon,
   ArrowDownIcon,
   ChartBarIcon,
@@ -31,13 +30,9 @@ import {
   LightBulbIcon
 } from '@heroicons/react/24/outline';
 import CampaignCreationModal from './CampaignCreationModal';
-
-// Import types from marketing API service
-// Note: Backend API calls are disabled - using local demo data
-// To enable backend: uncomment getCampaignInsights import and update fetchCampaignData
-import type {
-  CampaignSource
-} from '../../services/marketingApi';
+import { useMarketingMetrics, CampaignMetric } from '../../hooks/useMarketingMetrics';
+import { useStoredCampaigns } from '../../hooks/useStoredCampaigns';
+import { Lead } from '../../types';
 
 // =============================================================================
 // TYPE DEFINITIONS
@@ -46,11 +41,8 @@ import type {
 /**
  * Extended campaign type with UI-specific properties
  */
-interface Campaign extends CampaignSource {
-  id: string;
+interface Campaign extends CampaignMetric {
   costPerLead?: number;
-  status?: 'active' | 'paused' | 'completed';
-  channel?: string;
 }
 
 /**
@@ -107,104 +99,35 @@ const getChannelIcon = (source: string): string => {
 // MAIN COMPONENT
 // =============================================================================
 
-const Campaigns: React.FC = () => {
-  // Data state
-  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
-  const [insights, setInsights] = useState<string[]>([]);
-  const [totalLeads, setTotalLeads] = useState(0);
-  const [totalPipelineValue, setTotalPipelineValue] = useState(0);
-  
+interface CampaignsProps {
+  leads?: Lead[];
+}
+
+const Campaigns: React.FC<CampaignsProps> = ({ leads = [] }) => {
+  const { campaigns: derivedCampaigns, kpis, insights } = useMarketingMetrics(leads);
+  const { campaigns: manualCampaigns, save: saveManual } = useStoredCampaigns();
+
+  // Merge derived (from leads) + manually created
+  const allCampaigns: Campaign[] = useMemo(() => {
+    const derived = derivedCampaigns as Campaign[];
+    return [...derived, ...manualCampaigns.filter(m =>
+      !derived.some(d => d.channel.toLowerCase() === m.channel?.toLowerCase())
+    )];
+  }, [derivedCampaigns, manualCampaigns]);
+
+  const totalLeads = kpis.totalLeads;
+  const totalPipelineValue = kpis.totalPipelineValue;
+
   // UI state
-  const [isLoading, setIsLoading] = useState(true);
   const [sortField, setSortField] = useState<SortField>('total_leads');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [showNewCampaignModal, setShowNewCampaignModal] = useState(false);
 
   /**
-   * Load campaign data (using local data since backend may not be available)
-   * In production, this would fetch from the Clara backend
-   */
-  const fetchCampaignData = async () => {
-    setIsLoading(true);
-    
-    // Simulate loading delay for better UX
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    // Use demo data (in production, this would call the backend API)
-    setFallbackData();
-    setIsLoading(false);
-  };
-
-  /**
-   * Set fallback demo data when API is unavailable
-   */
-  const setFallbackData = () => {
-    const fallbackCampaigns: Campaign[] = [
-    {
-      id: '1',
-      name: 'Summer Sale 2024',
-        total_leads: 245,
-        total_value: 3800,
-        closed_won: 31,
-        conversion_rate: 12.5,
-        costPerLead: 15.50,
-        status: 'active',
-        channel: 'Facebook Ads'
-    },
-    {
-      id: '2',
-      name: 'Product Launch Campaign',
-        total_leads: 189,
-        total_value: 4300,
-        closed_won: 16,
-        conversion_rate: 8.3,
-        costPerLead: 22.75,
-        status: 'active',
-        channel: 'Google Ads'
-    },
-    {
-      id: '3',
-      name: 'Email Newsletter',
-        total_leads: 156,
-        total_value: 810,
-        closed_won: 24,
-        conversion_rate: 15.2,
-        costPerLead: 5.20,
-        status: 'active',
-        channel: 'Email Marketing'
-    },
-    {
-      id: '4',
-      name: 'LinkedIn Outreach',
-        total_leads: 98,
-        total_value: 1200,
-        closed_won: 18,
-        conversion_rate: 18.7,
-        costPerLead: 12.30,
-        status: 'active',
-        channel: 'LinkedIn'
-      }
-    ];
-    
-    setCampaigns(fallbackCampaigns);
-    setInsights([
-      'LinkedIn Outreach has the highest conversion rate (18.7%) - consider increasing budget',
-      'Email Newsletter has lowest cost per lead ($5.20) - great ROI channel'
-    ]);
-    setTotalLeads(688);
-    setTotalPipelineValue(10110);
-  };
-
-  // Fetch data on component mount
-  useEffect(() => {
-    fetchCampaignData();
-  }, []);
-
-  /**
    * Sort campaigns based on current sort settings
    */
   const sortedCampaigns = useMemo(() => {
-    return [...campaigns].sort((a, b) => {
+    return [...allCampaigns].sort((a, b) => {
       let aValue: string | number;
       let bValue: string | number;
       
@@ -214,16 +137,16 @@ const Campaigns: React.FC = () => {
           bValue = b.name.toLowerCase();
           break;
         case 'total_leads':
-          aValue = a.total_leads;
-          bValue = b.total_leads;
+          aValue = a.total_leads ?? 0;
+          bValue = b.total_leads ?? 0;
           break;
         case 'conversion_rate':
-          aValue = a.conversion_rate;
-          bValue = b.conversion_rate;
+          aValue = a.conversion_rate ?? 0;
+          bValue = b.conversion_rate ?? 0;
           break;
         case 'total_value':
-          aValue = a.total_value;
-          bValue = b.total_value;
+          aValue = a.total_value ?? 0;
+          bValue = b.total_value ?? 0;
           break;
         default:
           return 0;
@@ -233,7 +156,7 @@ const Campaigns: React.FC = () => {
       if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
       return 0;
     });
-  }, [campaigns, sortField, sortDirection]);
+  }, [allCampaigns, sortField, sortDirection]);
 
   /**
    * Handle sort column click
@@ -273,19 +196,10 @@ const Campaigns: React.FC = () => {
         <div>
           <h2 className="text-xl font-semibold text-gray-900">Campaigns</h2>
           <p className="text-sm text-gray-600 mt-1">
-            Track and manage your marketing campaigns • {totalLeads} total leads • ${totalPipelineValue.toLocaleString()} pipeline
+            {allCampaigns.length} channels • {totalLeads} total leads • ${totalPipelineValue.toLocaleString()} pipeline
           </p>
         </div>
         <div className="flex gap-2">
-          <Button 
-            variant="outline" 
-            onClick={fetchCampaignData}
-            disabled={isLoading}
-            className="flex items-center"
-          >
-            <ArrowPathIcon className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-            Refresh
-          </Button>
           <Button 
             className="bg-primary hover:bg-primary/90"
             onClick={() => setShowNewCampaignModal(true)}
@@ -303,7 +217,7 @@ const Campaigns: React.FC = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-blue-600 font-medium">Total Campaigns</p>
-                <p className="text-2xl font-bold text-blue-700">{campaigns.length}</p>
+                <p className="text-2xl font-bold text-blue-700">{allCampaigns.length}</p>
               </div>
               <ChartBarIcon className="h-8 w-8 text-blue-400" />
             </div>
@@ -328,7 +242,7 @@ const Campaigns: React.FC = () => {
               <div>
                 <p className="text-sm text-purple-600 font-medium">Conversions</p>
                 <p className="text-2xl font-bold text-purple-700">
-                  {campaigns.reduce((sum, c) => sum + c.closed_won, 0)}
+                  {allCampaigns.reduce((sum: number, c: Campaign) => sum + (c.closed_won ?? 0), 0)}
                 </p>
               </div>
               <CheckCircleIcon className="h-8 w-8 text-purple-400" />
@@ -342,8 +256,8 @@ const Campaigns: React.FC = () => {
               <div>
                 <p className="text-sm text-orange-600 font-medium">Avg. Conv. Rate</p>
                 <p className="text-2xl font-bold text-orange-700">
-                  {campaigns.length > 0 
-                    ? (campaigns.reduce((sum, c) => sum + c.conversion_rate, 0) / campaigns.length).toFixed(1)
+                  {allCampaigns.length > 0
+                    ? (allCampaigns.reduce((sum: number, c: Campaign) => sum + (c.conversion_rate ?? 0), 0) / allCampaigns.length).toFixed(1)
                     : 0}%
                 </p>
               </div>
@@ -364,10 +278,10 @@ const Campaigns: React.FC = () => {
           </CardHeader>
           <CardContent>
             <ul className="space-y-2">
-              {insights.map((insight, index) => (
-                <li key={index} className="flex items-start text-sm text-gray-700">
+              {insights.map(insight => (
+                <li key={insight.id} className="flex items-start text-sm text-gray-700">
                   <SparklesIcon className="h-4 w-4 mr-2 mt-0.5 text-primary flex-shrink-0" />
-                  {insight}
+                  {insight.description}
                 </li>
               ))}
             </ul>
@@ -375,29 +289,22 @@ const Campaigns: React.FC = () => {
         </Card>
       )}
 
-      {/* Info Banner - Demo Mode */}
-      <Card className="border-blue-200 bg-blue-50">
-        <CardContent className="pt-4">
-          <div className="flex items-center text-blue-700">
-            <SparklesIcon className="h-5 w-5 mr-2" />
-            <span className="font-medium">Demo Mode</span>
-            <span className="text-sm text-blue-600 ml-2">
-              - Showing sample campaign data. Connect Clara backend for live data.
-            </span>
-          </div>
-        </CardContent>
-      </Card>
-
       {/* Campaigns Table */}
       <Card className="shadow-sm">
         <CardHeader className="border-b bg-gray-50/50">
           <CardTitle className="text-lg">Campaign Performance</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
-          {isLoading ? (
-            <div className="flex items-center justify-center py-12">
-              <ArrowPathIcon className="h-8 w-8 animate-spin text-primary" />
-              <span className="ml-2 text-gray-500">Loading campaigns...</span>
+          {allCampaigns.length === 0 ? (
+            <div className="text-center py-12">
+              <ChartBarIcon className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+              <p className="text-gray-500 font-medium">No campaigns yet</p>
+              <p className="text-gray-400 text-sm mt-1">
+                Campaigns are auto-created from your leads' <strong>lead_source</strong> field, or create one manually.
+              </p>
+              <Button className="mt-4 bg-primary hover:bg-primary/90" onClick={() => setShowNewCampaignModal(true)}>
+                <PlusIcon className="h-5 w-5 mr-2" /> Create Campaign
+              </Button>
             </div>
           ) : (
           <div className="overflow-x-auto">
@@ -435,60 +342,39 @@ const Campaigns: React.FC = () => {
                       </button>
                   </th>
                   <th className="text-left py-3 px-4 font-medium text-gray-700">
-                    Cost per Lead
+                    Pipeline Value
                   </th>
                 </tr>
               </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {sortedCampaigns.map((campaign) => (
+                  {sortedCampaigns.map(campaign => (
                     <tr key={campaign.id} className="hover:bg-gray-50 transition-colors">
+                      <td className="py-4 px-4 font-medium text-gray-900">{campaign.name}</td>
                       <td className="py-4 px-4">
-                      <div className="font-medium text-gray-900">{campaign.name}</div>
-                    </td>
-                      <td className="py-4 px-4">
-                        <div className="flex items-center text-sm text-gray-700">
-                          <span className="mr-2 text-lg">{getChannelIcon(campaign.channel || campaign.name)}</span>
-                          {campaign.channel || campaign.name}
+                        <div className="flex items-center gap-1.5 text-sm text-gray-700">
+                          <span className="text-base">{getChannelIcon(campaign.channel || campaign.name)}</span>
+                          {campaign.channel || '—'}
                         </div>
-                    </td>
+                      </td>
                       <td className="py-4 px-4">
                         <span className="font-semibold text-gray-900">{campaign.total_leads}</span>
-                        <span className="text-xs text-gray-500 ml-1">
-                          ({campaign.closed_won} won)
-                        </span>
-                    </td>
+                        <span className="text-xs text-gray-400 ml-1">({campaign.closed_won ?? 0} won)</span>
+                      </td>
                       <td className="py-4 px-4">
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium border ${getPerformanceBadge(campaign.conversion_rate)}`}>
                           {campaign.conversion_rate}%
                         </span>
-                    </td>
+                      </td>
                       <td className="py-4 px-4">
-                      <span className="text-sm text-gray-700">
-                          ${campaign.costPerLead?.toFixed(2) || 'N/A'}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
+                        <span className="text-sm font-medium text-gray-800">
+                          {campaign.total_value > 0 ? `$${campaign.total_value.toLocaleString()}` : '—'}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
               </tbody>
             </table>
               
-              {/* Empty State */}
-              {campaigns.length === 0 && !isLoading && (
-                <div className="text-center py-12">
-                  <ChartBarIcon className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-                  <p className="text-gray-500 font-medium">No campaigns found</p>
-                  <p className="text-gray-400 text-sm mt-1">
-                    Create your first campaign to start tracking performance
-                  </p>
-                  <Button 
-                    className="mt-4 bg-primary hover:bg-primary/90"
-                    onClick={() => setShowNewCampaignModal(true)}
-                  >
-                    <PlusIcon className="h-5 w-5 mr-2" />
-                    Create Campaign
-                  </Button>
-              </div>
-            )}
           </div>
           )}
         </CardContent>
@@ -505,7 +391,7 @@ const Campaigns: React.FC = () => {
         <CampaignCreationModal 
           onClose={() => setShowNewCampaignModal(false)}
           onCampaignCreated={(campaign) => {
-            setCampaigns([...campaigns, campaign]);
+            saveManual([...manualCampaigns, campaign as CampaignMetric]);
             setShowNewCampaignModal(false);
           }}
         />

@@ -1,6 +1,7 @@
 // src/pages/support/ChatSupportPage.tsx
 // Live Chat Support - Interactive AI chat with ticket creation
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { useSpeechRecognition } from '../../hooks/useSpeechRecognition';
 import { useCreateTicketMutation, useAISuggestResponseMutation } from '../../hooks/queries/useSupportQuery';
 import { Card, CardContent } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
@@ -17,6 +18,8 @@ import {
   BoltIcon,
   DocumentTextIcon,
   LightBulbIcon,
+  MicrophoneIcon,
+  StopIcon,
 } from '@heroicons/react/24/outline';
 
 interface ChatMessage {
@@ -57,6 +60,25 @@ const ChatSupportPage: React.FC = () => {
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // STT: append transcript to the current input value
+  const handleTranscript = useCallback((text: string) => {
+    setInputValue(prev => (prev ? `${prev} ${text}` : text));
+    setTimeout(() => inputRef.current?.focus(), 50);
+  }, []);
+
+  const { isListening, isSupported, startListening, stopListening } = useSpeechRecognition({
+    onTranscript: handleTranscript,
+    lang: 'en-US',
+  });
+
+  const toggleListening = () => {
+    if (isListening) {
+      stopListening();
+    } else {
+      startListening();
+    }
+  };
   
   const createTicketMutation = useCreateTicketMutation();
   const aiAnswerMutation = useAISuggestResponseMutation();
@@ -344,21 +366,68 @@ A support agent will review your ticket and respond within 24 hours.`;
 
         {/* Input Area */}
         <div className="p-4 border-t bg-white">
-          <div className="flex gap-3">
+          <div className="flex gap-2 items-center">
             <input
               ref={inputRef}
               type="text"
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
-              placeholder="Type your message..."
+              placeholder={isListening ? 'Listening… speak now' : 'Type your message...'}
               disabled={isProcessing}
-              className="flex-1 px-4 py-3 border rounded-xl focus:ring-2 focus:ring-green-500/20 focus:border-green-500"
+              className={`flex-1 px-4 py-3 border rounded-xl focus:ring-2 focus:outline-none transition-all ${
+                isListening
+                  ? 'border-red-400 ring-2 ring-red-200 focus:ring-red-300'
+                  : 'focus:ring-green-500/20 focus:border-green-500'
+              }`}
               onKeyDown={(e) => e.key === 'Enter' && handleSend()}
             />
+
+            {/* Microphone / STT Button — always rendered, disabled when unsupported */}
+            <div
+              className="relative flex-shrink-0"
+              title={
+                !isSupported
+                  ? 'Speech input is not supported in this browser. Use Chrome or Edge.'
+                  : isListening
+                  ? 'Stop listening'
+                  : 'Click to speak'
+              }
+            >
+              <button
+                type="button"
+                onClick={toggleListening}
+                disabled={isProcessing || !isSupported}
+                className={`relative flex items-center justify-center gap-1.5 h-[46px] px-3 rounded-xl border-2 transition-all duration-200 ${
+                  isListening
+                    ? 'bg-red-50 border-red-400 text-red-600 hover:bg-red-100'
+                    : 'bg-gray-50 border-gray-200 text-gray-500 hover:bg-gray-100 hover:border-gray-300'
+                } disabled:opacity-40 disabled:cursor-not-allowed`}
+                aria-label={isListening ? 'Stop voice input' : 'Start voice input'}
+              >
+                {isListening ? (
+                  <>
+                    {/* Animated waveform bars */}
+                    <span className="flex items-center gap-[2px] h-5">
+                      {[...Array(5)].map((_, i) => (
+                        <span
+                          key={i}
+                          className="stt-bar inline-block w-[3px] rounded-full bg-red-500"
+                          style={{ height: '100%', transformOrigin: 'center bottom' }}
+                        />
+                      ))}
+                    </span>
+                    <StopIcon className="h-4 w-4 flex-shrink-0" />
+                  </>
+                ) : (
+                  <MicrophoneIcon className="h-5 w-5" />
+                )}
+              </button>
+            </div>
+
             <Button
               onClick={handleSend}
               disabled={!inputValue.trim() || isProcessing}
-              className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 px-6"
+              className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 px-5 flex-shrink-0"
             >
               <PaperAirplaneIcon className="h-5 w-5" />
             </Button>

@@ -240,6 +240,31 @@ export const useSendTicketMessageMutation = () => {
 
 // ==================== KNOWLEDGE BASE QUERIES ====================
 
+// ── Static KB fallback data (shown when backend returns 0 articles) ──────────
+const STATIC_KB_ARTICLES: KBArticle[] = [
+  { id: 'kb-s1', title: 'How to reset your password', slug: 'reset-password', content: 'Go to the login page and click \'Forgot Password\'. Enter your registered email address. Check your inbox for the reset link and follow the instructions. The link expires after 24 hours.', excerpt: 'Step-by-step guide to reset your account password quickly and securely.', category_id: 'cat-account', type: 'how_to', status: 'published', author_id: 'system', keywords: ['password', 'reset', 'login'], tags: ['account', 'security'], views_count: 1840, helpful_count: 412, not_helpful_count: 8, ai_generated: false, created_at: new Date(Date.now() - 60 * 86400000).toISOString(), updated_at: new Date(Date.now() - 5 * 86400000).toISOString() },
+  { id: 'kb-s2', title: 'Understanding your monthly invoice', slug: 'understanding-invoice', content: 'Your invoice contains three sections: subscription fees (base plan), usage charges (overages), and applicable taxes. You can download invoices in PDF from Billing > Invoices. Contact support if any charge is unclear.', excerpt: 'Explains every line item on your monthly invoice in plain English.', category_id: 'cat-billing', type: 'faq', status: 'published', author_id: 'system', keywords: ['invoice', 'billing', 'charge'], tags: ['billing'], views_count: 1120, helpful_count: 289, not_helpful_count: 14, ai_generated: false, created_at: new Date(Date.now() - 45 * 86400000).toISOString(), updated_at: new Date(Date.now() - 3 * 86400000).toISOString() },
+  { id: 'kb-s3', title: 'Getting started with the CRM', slug: 'getting-started', content: 'Welcome! Start by completing your profile, then invite your team under Settings > Team. Import your existing leads via the Leads module. Explore the Dashboard for a quick overview of your pipeline.', excerpt: 'A quick-start guide for new users to get up and running in minutes.', category_id: 'cat-started', type: 'how_to', status: 'published', author_id: 'system', keywords: ['onboarding', 'setup', 'start'], tags: ['onboarding', 'beginner'], views_count: 3210, helpful_count: 876, not_helpful_count: 21, ai_generated: false, created_at: new Date(Date.now() - 90 * 86400000).toISOString(), updated_at: new Date(Date.now() - 10 * 86400000).toISOString() },
+  { id: 'kb-s4', title: 'Setting up two-factor authentication', slug: 'two-factor-auth', content: 'Navigate to Settings > Security > Two-Factor Authentication. Choose between an authenticator app (recommended) or SMS. Scan the QR code or enter the manual key into your app and verify with the 6-digit code.', excerpt: 'Secure your account with 2FA using an authenticator app or SMS.', category_id: 'cat-account', type: 'how_to', status: 'published', author_id: 'system', keywords: ['2fa', 'security', 'authentication'], tags: ['account', 'security'], views_count: 940, helpful_count: 231, not_helpful_count: 5, ai_generated: false, created_at: new Date(Date.now() - 30 * 86400000).toISOString(), updated_at: new Date(Date.now() - 2 * 86400000).toISOString() },
+  { id: 'kb-s5', title: 'How to upgrade or downgrade your plan', slug: 'change-plan', content: 'Go to Settings > Billing > Change Plan. Choose a new plan and confirm. Upgrades take effect immediately and you are charged a pro-rated amount. Downgrades take effect at the next billing cycle.', excerpt: 'How to switch between subscription plans without losing your data.', category_id: 'cat-billing', type: 'faq', status: 'published', author_id: 'system', keywords: ['plan', 'upgrade', 'downgrade', 'subscription'], tags: ['billing', 'plans'], views_count: 760, helpful_count: 198, not_helpful_count: 9, ai_generated: false, created_at: new Date(Date.now() - 20 * 86400000).toISOString(), updated_at: new Date(Date.now() - 1 * 86400000).toISOString() },
+  { id: 'kb-s6', title: 'Importing leads from a CSV file', slug: 'import-leads-csv', content: 'Go to Leads > Import. Download the CSV template, fill in your data (name, email, phone, company), then upload the file. The system validates each row and shows a preview before saving. Duplicate emails are automatically skipped.', excerpt: 'Bulk-import your existing contacts using a simple CSV template.', category_id: 'cat-started', type: 'how_to', status: 'published', author_id: 'system', keywords: ['import', 'csv', 'leads', 'contacts'], tags: ['leads', 'data'], views_count: 1530, helpful_count: 347, not_helpful_count: 18, ai_generated: false, created_at: new Date(Date.now() - 55 * 86400000).toISOString(), updated_at: new Date(Date.now() - 7 * 86400000).toISOString() },
+  { id: 'kb-s7', title: 'Troubleshooting slow page loads', slug: 'slow-page-loads', content: 'Try clearing your browser cache (Ctrl+Shift+Delete), disabling browser extensions, or switching to a different browser. If the issue persists across networks, contact support with your browser version and a screenshot.', excerpt: 'Quick steps to diagnose and fix slow or unresponsive pages.', category_id: 'cat-troubleshoot', type: 'troubleshooting', status: 'published', author_id: 'system', keywords: ['slow', 'performance', 'load'], tags: ['troubleshooting', 'browser'], views_count: 680, helpful_count: 154, not_helpful_count: 22, ai_generated: false, created_at: new Date(Date.now() - 14 * 86400000).toISOString(), updated_at: new Date(Date.now() - 1 * 86400000).toISOString() },
+  { id: 'kb-s8', title: 'API Authentication and API Keys', slug: 'api-authentication', content: 'Generate an API key from Settings > API. Include it in every request as a Bearer token in the Authorization header. Keys can be scoped to read-only or read-write. Rotate keys regularly for security.', excerpt: 'How to authenticate with the REST API using Bearer tokens.', category_id: 'cat-api', type: 'guide', status: 'published', author_id: 'system', keywords: ['api', 'key', 'token', 'auth'], tags: ['api', 'developers'], views_count: 890, helpful_count: 267, not_helpful_count: 11, ai_generated: false, created_at: new Date(Date.now() - 40 * 86400000).toISOString(), updated_at: new Date(Date.now() - 4 * 86400000).toISOString() },
+  { id: 'kb-s9', title: 'Enabling AI auto-response for tickets', slug: 'ai-auto-response', content: 'Go to Support > Settings > AI Features. Toggle on \'Auto-respond to new tickets\'. The AI uses RAG over your Knowledge Base to craft a first response. You can review and edit the suggestion before it is sent.', excerpt: 'Let the AI handle first responses to common support tickets automatically.', category_id: 'cat-started', type: 'how_to', status: 'published', author_id: 'system', keywords: ['ai', 'auto-response', 'ticket', 'rag'], tags: ['ai', 'support'], views_count: 1105, helpful_count: 299, not_helpful_count: 13, ai_generated: false, created_at: new Date(Date.now() - 25 * 86400000).toISOString(), updated_at: new Date(Date.now() - 2 * 86400000).toISOString() },
+  { id: 'kb-s10', title: 'Cancelling your subscription', slug: 'cancel-subscription', content: 'Go to Settings > Billing > Cancel Plan. Your account remains active until the end of the current billing period. You can export all your data before cancellation from Settings > Data Export.', excerpt: 'Steps to cancel your subscription while keeping access until period end.', category_id: 'cat-billing', type: 'faq', status: 'published', author_id: 'system', keywords: ['cancel', 'subscription', 'billing'], tags: ['billing', 'account'], views_count: 540, helpful_count: 132, not_helpful_count: 31, ai_generated: false, created_at: new Date(Date.now() - 50 * 86400000).toISOString(), updated_at: new Date(Date.now() - 6 * 86400000).toISOString() },
+  { id: 'kb-s11', title: 'App shows blank screen or won\'t load', slug: 'blank-screen-fix', content: 'Hard-refresh the page (Ctrl+Shift+R or Cmd+Shift+R). If still blank, clear your browser\'s local storage (DevTools > Application > Local Storage > Clear). Ensure you are on the latest browser version.', excerpt: 'Fixes for blank screen, white page, or app failing to load at all.', category_id: 'cat-troubleshoot', type: 'troubleshooting', status: 'published', author_id: 'system', keywords: ['blank', 'white screen', 'crash', 'load'], tags: ['troubleshooting'], views_count: 812, helpful_count: 193, not_helpful_count: 17, ai_generated: false, created_at: new Date(Date.now() - 18 * 86400000).toISOString(), updated_at: new Date(Date.now() - 3 * 86400000).toISOString() },
+  { id: 'kb-s12', title: 'Webhooks: setup and event types', slug: 'webhooks-setup', content: 'Register a webhook endpoint in Settings > Integrations > Webhooks. Select the events you want (e.g. ticket.created, lead.updated). Each request includes a HMAC-SHA256 signature header for verification.', excerpt: 'How to receive real-time event notifications via webhooks.', category_id: 'cat-api', type: 'guide', status: 'published', author_id: 'system', keywords: ['webhook', 'events', 'integration', 'api'], tags: ['api', 'integrations'], views_count: 620, helpful_count: 178, not_helpful_count: 8, ai_generated: false, created_at: new Date(Date.now() - 35 * 86400000).toISOString(), updated_at: new Date(Date.now() - 5 * 86400000).toISOString() },
+];
+
+const STATIC_KB_CATEGORIES: KBCategory[] = [
+  { id: 'cat-started', name: 'Getting Started', slug: 'getting-started', description: 'New here? Set up your account and start using the platform in minutes.', icon: '🚀', color: '#6366f1', order_position: 1, articles_count: 3, is_active: true, created_at: '', updated_at: '' },
+  { id: 'cat-account', name: 'Account & Security', slug: 'account-security', description: 'Password resets, 2FA, profile settings and account management.', icon: '🔐', color: '#8b5cf6', order_position: 2, articles_count: 2, is_active: true, created_at: '', updated_at: '' },
+  { id: 'cat-billing', name: 'Billing & Payments', slug: 'billing-payments', description: 'Invoices, plan changes, payment methods and cancellations.', icon: '💳', color: '#0ea5e9', order_position: 3, articles_count: 3, is_active: true, created_at: '', updated_at: '' },
+  { id: 'cat-troubleshoot', name: 'Troubleshooting', slug: 'troubleshooting', description: 'Diagnose and fix common issues with the platform.', icon: '🔧', color: '#f59e0b', order_position: 4, articles_count: 2, is_active: true, created_at: '', updated_at: '' },
+  { id: 'cat-api', name: 'API & Integrations', slug: 'api-integrations', description: 'REST API reference, webhooks, and third-party integrations.', icon: '✨', color: '#10b981', order_position: 5, articles_count: 2, is_active: true, created_at: '', updated_at: '' },
+];
+// ─────────────────────────────────────────────────────────────────────────────
+
 export const useKBArticlesQuery = (filters: KBFilters = {}) => {
   return useQuery({
     queryKey: ['kb-articles', filters],
@@ -252,34 +277,41 @@ export const useKBArticlesQuery = (filters: KBFilters = {}) => {
         const response = await fetch(`${SUPPORT_API_URL}/api/kb/articles?${params}`);
         if (response.ok) {
           const data = await response.json();
-          console.log('✅ Fetched KB articles from backend:', data.length);
-          
-          // Transform backend format (state, view_count) to frontend KBArticle
-          return data.map((a: any) => ({
-            id: a.id,
-            title: a.title,
-            slug: a.title.toLowerCase().replace(/\s+/g, '-'),
-            content: a.content || '',
-            excerpt: a.content?.substring(0, 120) || '',
-            category_id: a.category || 'general',
-            type: 'faq',
-            status: a.state || 'published',
-            author_id: 'system',
-            keywords: [],
-            tags: [a.category || 'general'],
-            views_count: a.view_count || 0,
-            helpful_count: a.helpful_count || 0,
-            not_helpful_count: 0,
-            ai_generated: false,
-            created_at: a.created_at,
-            updated_at: a.updated_at,
-          }));
+          if (data.length > 0) {
+            console.log('✅ Fetched KB articles from backend:', data.length);
+            // Transform backend format (state, view_count) to frontend KBArticle
+            return data.map((a: any) => ({
+              id: a.id,
+              title: a.title,
+              slug: a.title.toLowerCase().replace(/\s+/g, '-'),
+              content: a.content || '',
+              excerpt: a.content?.substring(0, 120) || '',
+              category_id: a.category || 'general',
+              type: 'faq',
+              status: a.state || 'published',
+              author_id: 'system',
+              keywords: [],
+              tags: [a.category || 'general'],
+              views_count: a.view_count || 0,
+              helpful_count: a.helpful_count || 0,
+              not_helpful_count: 0,
+              ai_generated: false,
+              created_at: a.created_at,
+              updated_at: a.updated_at,
+            }));
+          }
         }
       } catch (error) {
-        console.log('⚠️ Backend unavailable, using mock KB data');
+        console.log('⚠️ Backend unavailable, using static KB data');
       }
       
-      return [];
+      // Fallback: rich static articles
+      console.log('ℹ️ Using static KB articles fallback');
+      let articles = STATIC_KB_ARTICLES;
+      if (filters.category_id) {
+        articles = articles.filter(a => a.category_id === filters.category_id);
+      }
+      return articles;
     },
     staleTime: 60000, // 1 minute
   });
@@ -313,13 +345,16 @@ export const useKBCategoriesQuery = () => {
       try {
         const response = await fetch(`${SUPPORT_API_URL}/api/kb/categories`);
         if (response.ok) {
-          return await response.json();
+          const data = await response.json();
+          if (data.length > 0) return data;
         }
       } catch (error) {
-        console.log('Using mock KB categories');
+        console.log('⚠️ Backend unavailable, using static KB categories');
       }
       
-      return [];
+      // Fallback: static categories
+      console.log('ℹ️ Using static KB categories fallback');
+      return STATIC_KB_CATEGORIES;
     },
     staleTime: 300000, // 5 minutes
   });

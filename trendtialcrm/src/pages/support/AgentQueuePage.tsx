@@ -1,6 +1,7 @@
 // src/pages/support/AgentQueuePage.tsx
 // Human Agent Queue - For tickets that need human review
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { useSpeechRecognition } from '../../hooks/useSpeechRecognition';
 import { useTicketsQuery, useTicketMessagesQuery, useSendTicketMessageMutation, useUpdateTicketMutation, useAISuggestResponseMutation } from '../../hooks/queries/useSupportQuery';
 import { Ticket, TicketMessage } from '../../types/support';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
@@ -23,6 +24,8 @@ import {
   XMarkIcon,
   ArrowUpIcon,
   BoltIcon,
+  MicrophoneIcon,
+  StopIcon,
 } from '@heroicons/react/24/outline';
 import { formatDistanceToNow, format } from 'date-fns';
 
@@ -152,6 +155,20 @@ const QueueTicketCard: React.FC<{
 const AgentQueuePage: React.FC = () => {
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
   const [replyContent, setReplyContent] = useState('');
+  const replyRef = useRef<HTMLTextAreaElement>(null);
+
+  // STT — append voice transcript to reply box
+  const handleTranscript = useCallback((text: string) => {
+    setReplyContent(prev => (prev ? `${prev} ${text}` : text));
+    setTimeout(() => replyRef.current?.focus(), 50);
+  }, []);
+
+  const { isListening, isSupported, startListening, stopListening } = useSpeechRecognition({
+    onTranscript: handleTranscript,
+    lang: 'en-US',
+  });
+
+  const toggleListening = () => (isListening ? stopListening() : startListening());
   const [filter, setFilter] = useState<'all' | 'needs_review' | 'open' | 'in_progress'>('needs_review');
   const [searchQuery, setSearchQuery] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -524,26 +541,63 @@ const AgentQueuePage: React.FC = () => {
 
               {/* Reply Box */}
               <div className="p-4 border-t bg-gray-50">
-                <div className="flex gap-3">
-                  <textarea
-                    value={replyContent}
-                    onChange={(e) => setReplyContent(e.target.value)}
-                    placeholder="Type your response..."
-                    rows={2}
-                    className="flex-1 p-3 border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary resize-none"
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && !e.shiftKey) {
-                        e.preventDefault();
-                        handleSendReply();
-                      }
-                    }}
-                  />
+                <textarea
+                  ref={replyRef}
+                  value={replyContent}
+                  onChange={(e) => setReplyContent(e.target.value)}
+                  placeholder={isListening ? 'Listening… speak now' : 'Type your response...'}
+                  rows={2}
+                  className={`w-full p-3 border rounded-lg focus:ring-2 resize-none mb-2 transition-all ${
+                    isListening
+                      ? 'border-red-400 ring-2 ring-red-200 focus:ring-red-300 focus:outline-none'
+                      : 'focus:ring-primary/20 focus:border-primary'
+                  }`}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSendReply();
+                    }
+                  }}
+                />
+                <div className="flex items-center justify-between">
+                  {/* Mic button */}
+                  <div title={!isSupported ? 'Speech input requires Chrome or Edge' : isListening ? 'Stop listening' : 'Click to dictate'}>
+                    <button
+                      type="button"
+                      onClick={toggleListening}
+                      disabled={!isSupported}
+                      className={`flex items-center justify-center gap-1.5 h-9 px-3 rounded-lg border-2 transition-all duration-200 text-sm ${
+                        isListening
+                          ? 'bg-red-50 border-red-400 text-red-600 hover:bg-red-100'
+                          : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'
+                      } disabled:opacity-40 disabled:cursor-not-allowed`}
+                      aria-label={isListening ? 'Stop voice input' : 'Start voice input'}
+                    >
+                      {isListening ? (
+                        <>
+                          <span className="flex items-center gap-[2px] h-4">
+                            {[...Array(5)].map((_, i) => (
+                              <span key={i} className="stt-bar inline-block w-[3px] rounded-full bg-red-500" style={{ height: '100%', transformOrigin: 'center bottom' }} />
+                            ))}
+                          </span>
+                          <StopIcon className="h-3.5 w-3.5" />
+                          <span>Stop</span>
+                        </>
+                      ) : (
+                        <>
+                          <MicrophoneIcon className="h-4 w-4" />
+                          <span>Speak</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
                   <Button
                     onClick={handleSendReply}
                     disabled={!replyContent.trim() || sendMessageMutation.isLoading}
-                    className="self-end bg-gradient-to-r from-primary to-indigo-600"
+                    className="bg-gradient-to-r from-primary to-indigo-600"
                   >
-                    <PaperAirplaneIcon className="h-5 w-5" />
+                    <PaperAirplaneIcon className="h-5 w-5 mr-1" />
+                    {sendMessageMutation.isLoading ? 'Sending...' : 'Send Reply'}
                   </Button>
                 </div>
               </div>
