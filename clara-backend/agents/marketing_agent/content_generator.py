@@ -44,18 +44,32 @@ logger = get_logger("content_generator")
 
 def init_ollama_config():
     """
-    Initialize Ollama configuration for local LLM inference.
-    
+    Initialize LLM configuration.
+
     Priority:
-    1. Ollama (local) - Primary option for all content generation
-    2. Groq (cloud) - Fallback if Ollama is not available
-    3. OpenAI (cloud) - Secondary fallback
-    
-    Configuration (via environment variables):
-    - OLLAMA_API_URL: chat endpoint, default http://localhost:11434/api/chat
-    - OLLAMA_MODEL_NAME: model name, default "llama3.1"
+    - production  → Groq directly (Ollama not available in cloud)
+    - development → Ollama first; Groq fallback if unreachable
     """
-    # Try Ollama first (local inference)
+    # Skip Ollama probe in production — go straight to Groq
+    if os.getenv("ENVIRONMENT", "development").lower() == "production":
+        groq_key = get_api_key("groq")
+        if groq_key and groq_key.startswith("gsk_"):
+            try:
+                from langchain_groq import ChatGroq
+                llm = ChatGroq(
+                    model="llama-3.3-70b-versatile",
+                    groq_api_key=groq_key,
+                    temperature=0.7,
+                    max_tokens=1500,
+                )
+                logger.info("ContentGenerator: using Groq (production mode)")
+                return {"type": "langchain", "llm": llm, "provider": "groq"}
+            except Exception as e:
+                logger.error(f"Groq init failed in production: {e}")
+        logger.warning("ContentGenerator: no LLM available in production — using fallback templates")
+        return {"type": "fallback"}
+
+    # Development: Try Ollama first (local inference)
     ollama_url = os.getenv("OLLAMA_API_URL", "http://localhost:11434/api/chat")
     ollama_model = os.getenv("OLLAMA_MODEL_NAME", "llama3.1")
     

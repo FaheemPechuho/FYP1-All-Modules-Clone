@@ -34,6 +34,7 @@ class Settings(BaseSettings):
     CARTESIA_API_KEY: str = Field(default="")  # For TTS
     DEEPGRAM_API_KEY: str = Field(default="")  # Backup for STT/TTS
     RESEND_API_KEY: str = Field(default="re_e2bEvcQt_HJAUKNzFBRywFL9UgY5aDNhP")  # Resend email service
+    RESEND_FROM_EMAIL: str = Field(default="onboarding@resend.dev")  # Sender address (use verified domain for arbitrary recipients)
     
     # ===== Supabase =====
     SUPABASE_URL: str = Field(default="")

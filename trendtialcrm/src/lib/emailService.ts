@@ -1,7 +1,8 @@
 // src/lib/emailService.ts
-// Sends email via clara-backend endpoint (/api/marketing/email/send).
-// The backend calls Resend API directly with the API key from environment.
-// This works in both development and production (no Vite proxy dependency).
+// Sends email via the Clara backend proxy (/api/send-email on marketing_server.py).
+// The backend calls Resend server-side — no CORS, no API key exposed in the browser.
+
+const BACKEND_URL = import.meta.env.VITE_CLARA_BACKEND_URL || 'http://localhost:8001';
 
 // ── Core send function ───────────────────────────────────────────────────────
 export interface SendEmailOptions {
@@ -11,7 +12,7 @@ export interface SendEmailOptions {
 }
 
 export async function sendEmail(options: SendEmailOptions): Promise<{ id: string }> {
-  const response = await fetch('/api/marketing/email/send', {
+  const response = await fetch(`${BACKEND_URL}/api/send-email`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({

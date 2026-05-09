@@ -13,6 +13,7 @@ from supabase import create_client, Client
 from .roberta_classifier import classify_ticket, classify_ticket_with_confidence
 from .kb_search import search_kb
 import requests
+from utils.llm_helper import call_llm
 
 load_dotenv()
 
@@ -186,21 +187,9 @@ def derive_priority_from_category(category: str) -> str:
 
 
 def call_llama_knowledge_answer(question: str, contexts: List[dict]) -> str:
-    """Call a local Llama 3.1 8B model (via Ollama) to get an answer.
+    """Use the unified LLM helper (Ollama locally, Groq in production) to answer
+    a support question given a list of KB context chunks."""
 
-    This function is designed for a local Ollama setup.
-
-    Configuration (via environment variables):
-    - OLLAMA_API_URL: chat endpoint, default http://localhost:11434/api/chat
-    - OLLAMA_MODEL_NAME: model name, default "llama3.1"
-
-    If the call fails, we return a simple fallback string instead of crashing.
-    """
-
-    api_url = os.getenv("OLLAMA_API_URL", "http://localhost:11434/api/chat")
-    model_name = os.getenv("OLLAMA_MODEL_NAME", "llama3.1")
-
-    # Build a simple context block from the retrieved KB chunks
     context_texts = []
     for idx, c in enumerate(contexts, start=1):
         title = c.get("article_title") or "Unknown source"
@@ -220,36 +209,11 @@ def call_llama_knowledge_answer(question: str, contexts: List[dict]) -> str:
         "Relevant documentation (sources):\n" + full_context
     )
 
-    # Ollama chat API format
-    payload = {
-        "model": model_name,
-        "messages": [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_message},
-        ],
-        "stream": False,
-    }
-
     try:
-        resp = requests.post(api_url, json=payload, timeout=60)
-        resp.raise_for_status()
-        data = resp.json()
-
-        # Ollama chat response format:
-        # {
-        #   "model": "llama3.1",
-        #   "created_at": "...",
-        #   "message": {"role": "assistant", "content": "..."},
-        #   "done": true,
-        #   ...
-        # }
-        message = data.get("message") or {}
-        content = message.get("content")
-        if content:
-            return content.strip()
-
+        result = call_llm(user_message, system_prompt)
+        if result:
+            return result
     except Exception as e:
-        # Fallback if LLM call fails for any reason
         return (
             "AI answer is not available right now. "
             "Please check the LLM server configuration. Error: " + str(e)

@@ -21,6 +21,7 @@ import json
 import os
 import requests
 from utils.logger import get_logger
+from utils.llm_helper import call_llm
 
 logger = get_logger("ab_testing_engine")
 
@@ -31,37 +32,13 @@ class ABTestingEngine:
     """
     
     def __init__(self):
-        """Initialize A/B Testing Engine with Ollama configuration"""
-        self.ollama_url = os.getenv("OLLAMA_API_URL", "http://localhost:11434/api/chat")
-        self.ollama_model = os.getenv("OLLAMA_MODEL_NAME", "llama3.1")
-        logger.info(f"ABTestingEngine initialized with Ollama ({self.ollama_model})")
+        """Initialize A/B Testing Engine"""
+        logger.info("ABTestingEngine initialized")
     
     def _call_ollama(self, prompt: str, system_prompt: str = None) -> str:
-        """Call Ollama API for AI assistance"""
-        try:
-            if not system_prompt:
-                system_prompt = "You are an A/B testing and conversion optimization expert. Provide data-driven recommendations."
-            
-            payload = {
-                "model": self.ollama_model,
-                "messages": [
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": prompt}
-                ],
-                "stream": False,
-                "options": {"temperature": 0.8}  # Higher for creative variants
-            }
-            
-            resp = requests.post(self.ollama_url, json=payload, timeout=60)
-            resp.raise_for_status()
-            data = resp.json()
-            
-            message = data.get("message", {})
-            return message.get("content", "").strip()
-            
-        except Exception as e:
-            logger.error(f"Ollama call error: {e}")
-            return ""
+        """Delegate to unified LLM helper (Ollama locally, Groq in production)."""
+        default_system = "You are an A/B testing and conversion optimization expert. Provide data-driven recommendations."
+        return call_llm(prompt, system_prompt or default_system, temperature=0.8)
     
     def generate_variants(self, 
                          test_type: str, 

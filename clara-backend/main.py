@@ -24,6 +24,7 @@ Marketing Agent Endpoints (/api/marketing/*):
 """
 
 import asyncio
+import os
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -49,9 +50,13 @@ app = FastAPI(
 )
 
 # Add CORS middleware
+# In production set ALLOWED_ORIGINS=https://yourapp.vercel.app (comma-separated)
+_raw_origins = os.getenv("ALLOWED_ORIGINS", "")
+_allowed_origins = [o.strip() for o in _raw_origins.split(",") if o.strip()] or ["*"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Configure appropriately for production
+    allow_origins=_allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

@@ -20,8 +20,20 @@ const LoginPage: React.FC = () => {
       await login(email, password);
       navigate('/dashboard');
     } catch (err: any) {
-      setError(err.message || 'Failed to login. Please check your credentials.');
-      console.error(err);
+      // Network-level failure (Supabase unreachable — project may be paused or no internet)
+      if (
+        err?.name === 'AuthRetryableFetchError' ||
+        err?.message?.toLowerCase().includes('networkerror') ||
+        err?.message?.toLowerCase().includes('failed to fetch')
+      ) {
+        setError(
+          'Cannot reach the authentication server. Check your internet connection. ' +
+          'If the problem persists, the Supabase project may be paused — visit app.supabase.com to restore it.'
+        );
+      } else {
+        setError(err.message || 'Failed to login. Please check your credentials.');
+      }
+      console.error('[LoginPage] Login error:', err);
     }
     setLoading(false);
   };

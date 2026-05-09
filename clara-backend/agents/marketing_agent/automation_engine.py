@@ -20,6 +20,7 @@ import json
 import os
 import requests
 from utils.logger import get_logger
+from utils.llm_helper import call_llm
 
 logger = get_logger("automation_engine")
 
@@ -30,37 +31,13 @@ class AutomationEngine:
     """
     
     def __init__(self):
-        """Initialize Automation Engine with Ollama configuration"""
-        self.ollama_url = os.getenv("OLLAMA_API_URL", "http://localhost:11434/api/chat")
-        self.ollama_model = os.getenv("OLLAMA_MODEL_NAME", "llama3.1")
-        logger.info(f"AutomationEngine initialized with Ollama ({self.ollama_model})")
+        """Initialize Automation Engine"""
+        logger.info("AutomationEngine initialized")
     
     def _call_ollama(self, prompt: str, system_prompt: str = None) -> str:
-        """Call Ollama API for AI assistance"""
-        try:
-            if not system_prompt:
-                system_prompt = "You are a marketing automation expert. Provide concise, actionable workflow recommendations."
-            
-            payload = {
-                "model": self.ollama_model,
-                "messages": [
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": prompt}
-                ],
-                "stream": False,
-                "options": {"temperature": 0.7}
-            }
-            
-            resp = requests.post(self.ollama_url, json=payload, timeout=60)
-            resp.raise_for_status()
-            data = resp.json()
-            
-            message = data.get("message", {})
-            return message.get("content", "").strip()
-            
-        except Exception as e:
-            logger.error(f"Ollama call error: {e}")
-            return ""
+        """Delegate to unified LLM helper (Ollama locally, Groq in production)."""
+        default_system = "You are a marketing automation expert. Provide concise, actionable workflow recommendations."
+        return call_llm(prompt, system_prompt or default_system)
     
     def suggest_workflow(self, goal: str, trigger_type: str, audience: str) -> Dict[str, Any]:
         """

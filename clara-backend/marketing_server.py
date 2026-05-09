@@ -578,8 +578,10 @@ async def send_email_proxy(req: SendEmailRequest):
     if not api_key:
         raise HTTPException(status_code=500, detail="RESEND_API_KEY is not configured on the server")
 
+    from_email = settings.RESEND_FROM_EMAIL or "onboarding@resend.dev"
+
     payload = {
-        "from": "onboarding@resend.dev",
+        "from": from_email,
         "to": req.to,
         "subject": req.subject,
         "html": req.html,
@@ -597,7 +599,10 @@ async def send_email_proxy(req: SendEmailRequest):
         )
         data = resp.json()
         if not resp.ok:
-            raise HTTPException(status_code=resp.status_code, detail=data.get("message", "Resend API error"))
+            error_msg = data.get("message") or data.get("name") or "Resend API error"
+            print(f"Resend error: {resp.status_code} — {data}")
+            raise HTTPException(status_code=resp.status_code, detail=error_msg)
+        print(f"Email sent via Resend → id={data.get('id')} to={req.to}")
         return {"id": data.get("id"), "message": "Email sent successfully"}
     except _requests.RequestException as e:
         raise HTTPException(status_code=502, detail=f"Failed to reach Resend API: {str(e)}")

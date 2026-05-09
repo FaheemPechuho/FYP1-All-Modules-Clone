@@ -1,0 +1,49 @@
+# Clara Backend — Production Requirements
+# ========================================
+# Stripped of: audio drivers (PyAudio/sounddevice/pygame/keyboard),
+#              heavy ML libs (torch/transformers — Support Agent is disabled),
+#              local-only TTS/STT clients (cartesia/elevenlabs/melotts),
+#              local Ollama client (replaced by Groq in production),
+#              dev/test tools.
+#
+# Build on Render.com:  pip install -r requirements-prod.txt
+# Python: 3.10+
+
+# ── Core Framework ────────────────────────────────────────────────────────────
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+pydantic>=2.12.5
+pydantic-settings==2.1.0
+python-dotenv==1.0.0
+
+# ── AI / LLM ──────────────────────────────────────────────────────────────────
+groq>=0.4.0
+openai==2.9.0
+anthropic>=0.7.0
+
+# ── LangChain + Google Gemini (Marketing Agent) ───────────────────────────────
+langchain>=1.1.0
+langchain-core>=1.1.0
+langchain-groq>=0.1.0
+langchain-google-genai>=4.0.0
+google-generativeai>=0.8.0
+langgraph>=1.0.0
+
+# ── Database ──────────────────────────────────────────────────────────────────
+supabase>=2.0.0
+
+# ── HTTP & Utilities ──────────────────────────────────────────────────────────
+httpx>=0.28.1,<1.0.0
+requests==2.31.0
+python-multipart>=0.0.6
+aiofiles>=23.0.0
+python-dateutil>=2.8.0
+
+# ── Logging & Monitoring ──────────────────────────────────────────────────────
+loguru>=0.7.0
+colorama==0.4.6
+tqdm>=4.66.0
+
+# ── Validation ────────────────────────────────────────────────────────────────
+email-validator>=2.0.0
+phonenumbers>=8.13.0

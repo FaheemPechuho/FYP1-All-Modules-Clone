@@ -12,8 +12,6 @@ Included in main.py via:
 =============================================================================
 """
 
-import os
-import httpx
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
@@ -87,12 +85,6 @@ class AnalyzeABTestRequest(BaseModel):
 class SuggestTestIdeasRequest(BaseModel):
     channel: str
     current_performance: Dict[str, Any]
-
-
-class SendEmailRequest(BaseModel):
-    to: str
-    subject: str
-    html: str
 
 
 # =============================================================================
@@ -310,37 +302,3 @@ async def suggest_test_ideas(request: SuggestTestIdeasRequest):
         return {"test_ideas": result}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
-
-# =============================================================================
-# EMAIL SENDING ENDPOINT (Resend API)
-# =============================================================================
-
-@router.post("/email/send")
-async def send_email(request: SendEmailRequest):
-    """Send email via Resend API"""
-    resend_api_key = os.getenv("RESEND_API_KEY")
-    if not resend_api_key:
-        raise HTTPException(status_code=500, detail="RESEND_API_KEY not configured in backend environment")
-
-    async with httpx.AsyncClient() as client:
-        response = await client.post(
-            "https://api.resend.com/emails",
-            headers={
-                "Authorization": f"Bearer {resend_api_key}",
-                "Content-Type": "application/json",
-            },
-            json={
-                "from": "onboarding@resend.dev",
-                "to": request.to,
-                "subject": request.subject,
-                "html": request.html,
-            },
-            timeout=30.0,
-        )
-
-    if response.status_code != 200:
-        error_text = response.text
-        raise HTTPException(status_code=response.status_code, detail=f"Resend API error: {error_text}")
-
-    return response.json()

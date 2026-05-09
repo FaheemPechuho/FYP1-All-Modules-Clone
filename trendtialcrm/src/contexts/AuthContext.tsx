@@ -38,14 +38,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     // Initial session check
     supabase.auth.getSession().then(({ data: { session: currentSession }, error: sessionError }) => {
-      console.log('[AuthContext] Initial getSession result - Session:', currentSession, 'Error:', sessionError);
       if (sessionError) {
-        console.error('[AuthContext] Initial getSession error:', sessionError.message);
-        // If getSession fails, we might not have a user, so set loading false after this phase.
+        console.error('[AuthContext] Initial getSession error:', sessionError.name, sessionError.message);
+        // Network failure while refreshing a stale token — sign out locally (no network call)
+        // to clear the stored token and stop the SDK's internal retry loop immediately.
+        if (sessionError.name === 'AuthRetryableFetchError') {
+          supabase.auth.signOut({ scope: 'local' });
+        }
       }
       setSession(currentSession);
       setUser(currentSession?.user ?? null);
-      setInitialAuthCheckComplete(true); 
+      setInitialAuthCheckComplete(true);
     });
 
     const { data: authListener } = supabase.auth.onAuthStateChange((_event, currentSession) => {

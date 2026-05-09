@@ -1,28 +1,48 @@
 // Service Worker for enhanced notifications
 const CACHE_NAME = 'trendtial-crm-v1';
-const urlsToCache = [
-  '/',
-  '/static/css/main.css',
-  '/static/js/main.js',
-  '/trlogo.png'
-];
 
-// Install event
+// Only cache the shell — Vite hashes JS/CSS so we don't list them here.
+// This SW exists for push notifications, not offline caching.
+const urlsToCache = ['/trlogo.png'];
+
+// Install event — cache only guaranteed-static assets
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then((cache) => cache.addAll(urlsToCache))
+    caches.open(CACHE_NAME).then((cache) =>
+      Promise.allSettled(urlsToCache.map((url) => cache.add(url)))
+    )
+  );
+  // Take control immediately without waiting for old SW to die
+  self.skipWaiting();
+});
+
+// Activate event — clean up old caches
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys().then((cacheNames) =>
+      Promise.all(
+        cacheNames
+          .filter((name) => name !== CACHE_NAME)
+          .map((name) => caches.delete(name))
+      )
+    ).then(() => self.clients.claim())
   );
 });
 
-// Fetch event
+// Fetch event — ONLY handle same-origin requests.
+// Cross-origin requests (Supabase, backend API, external CDNs) must NEVER be
+// intercepted by the SW — doing so breaks CORS for credentialed API calls.
 self.addEventListener('fetch', (event) => {
+  const url = new URL(event.request.url);
+
+  // Let the browser handle all cross-origin requests natively
+  if (url.origin !== self.location.origin) {
+    return;
+  }
+
+  // For same-origin requests: cache-first for static assets, network-first otherwise
   event.respondWith(
-    caches.match(event.request)
-      .then((response) => {
-        // Return cached version or fetch from network
-        return response || fetch(event.request);
-      })
+    caches.match(event.request).then((cached) => cached || fetch(event.request))
   );
 });
 
